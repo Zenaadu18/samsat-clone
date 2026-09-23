@@ -967,6 +967,13 @@
 
             </div>
 
+            <div style="margin-top: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="isMutasi" name="is_mutasi" style="width: 18px; height: 18px; cursor: pointer;">
+                <label for="isMutasi" style="font-size: 14px; color: var(--primary-dark); cursor: pointer; font-weight: 500;">
+                    Kendaraan Mutasi Masuk ke Wilayah NTT
+                </label>
+            </div>
+
 
             <button
                 type="submit"
@@ -1345,6 +1352,31 @@
 
 
             <!-- ========================================================
+                 AMNESTI
+            ========================================================= -->
+
+            <div
+                class="bill-row"
+                id="rowAmnesti"
+                style="display:none; background-color: #dcfce7; border: 1px solid #bbf7d0;"
+            >
+
+                <div class="bill-name" style="color: #166534; font-weight: bold;">
+                    Diskon Amnesti (PKB & Sanksi)
+                </div>
+
+                <div
+                    class="bill-value"
+                    id="resAmnesti"
+                    style="color: #16a34a; font-weight: bold;"
+                >
+                    - Rp 0
+                </div>
+
+            </div>
+
+
+            <!-- ========================================================
                  TOTAL
             ========================================================= -->
 
@@ -1551,7 +1583,8 @@
                             },
 
                             body: JSON.stringify({
-                                nopol: nopol
+                                nopol: nopol,
+                                is_mutasi: document.getElementById('isMutasi').checked
                             })
                         }
                     );
@@ -1857,6 +1890,33 @@
                 } else {
 
                     hide('rowBiayaTnkb');
+                }
+
+
+                /* ====================================================
+                   AMNESTI
+                ==================================================== */
+
+                const amnestiPotongan =
+                    Number(
+                        d.amnesti_total_potongan
+                    ) || 0;
+
+
+                if (d.amnesti_aktif && amnestiPotongan > 0) {
+
+                    show('rowAmnesti');
+
+                    setText(
+                        'resAmnesti',
+                        '- ' + formatRupiah(
+                            amnestiPotongan
+                        )
+                    );
+
+                } else {
+
+                    hide('rowAmnesti');
                 }
 
 

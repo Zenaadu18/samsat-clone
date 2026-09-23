@@ -4,6 +4,7 @@
 header('Content-Type: application/json; charset=utf-8');
 
 require 'db.php';
+require 'config_loader.php';
 require 'tax_helper.php';
 
 
@@ -60,13 +61,16 @@ $nopolClean = strtoupper(
     preg_replace('/\s+/', '', $nopolInput)
 );
 
+$isMutasi = !empty($data['is_mutasi']);
+
 
 /* ============================================================================
  * 2. AMBIL DATA KENDARAAN DARI API GETNOPOL
  * ========================================================================== */
 
 $getNopolUrl =
-    'https://dash.bpad.nttprov.go.id/pajak/webdtd/pendataan/core/php/getnopol.php';
+    $dbKonfigurasi['api_url_samsat']
+    ?? 'https://dash.bpad.nttprov.go.id/pajak/webdtd/pendataan/core/php/getnopol.php';
 
 $ch = curl_init($getNopolUrl);
 
@@ -409,7 +413,14 @@ $dpPkb =
 $pkbData = hitungPkbLengkap(
     $dpPkb,
     $kGuna,
-    $sdNotice
+    $sdNotice,
+    [
+        'alamat' => $alamat,
+        'nopol' => $nopolClean,
+        'is_mutasi' => $isMutasi,
+        'jenis' => $jenisKend,
+        'k_jr' => $kJr
+    ]
 );
 
 
@@ -707,7 +718,15 @@ responseJson([
 
         'peringatan' =>
             $pkbData['peringatan'],
-
+            
+        /* ---------------------------------------------------------------
+         * AMNESTI
+         * ------------------------------------------------------------- */
+        'amnesti_aktif' => (bool)($pkbData['amnesti_aktif'] ?? false),
+        'amnesti_diskon_pkb_berjalan' => (int)($pkbData['amnesti_diskon_pkb_berjalan'] ?? 0),
+        'amnesti_diskon_pkb_tunggakan' => (int)($pkbData['amnesti_diskon_pkb_tunggakan'] ?? 0),
+        'amnesti_denda_dibebaskan' => (int)($pkbData['amnesti_denda_dibebaskan'] ?? 0),
+        'amnesti_total_potongan' => (int)($pkbData['amnesti_total_potongan'] ?? 0),
 
         /* ---------------------------------------------------------------
          * TOTAL
