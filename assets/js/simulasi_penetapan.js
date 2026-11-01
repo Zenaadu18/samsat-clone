@@ -107,7 +107,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // 7. Tombol Cetak & Salin
     const btnPrint = document.getElementById('btnPrint');
     if (btnPrint) {
-        btnPrint.addEventListener('click', () => window.print());
+        btnPrint.addEventListener('click', () => {
+            updatePrintDate();
+            window.print();
+        });
     }
 
     const btnSalin = document.getElementById('btnSalin');
@@ -484,3 +487,106 @@ _Dihasilkan otomatis melalui Portal Layanan Bapenda NTT._`;
         alert('Gagal menyalin ringkasan teks.');
     });
 }
+
+// Update tanggal cetak resmi saat mencetak
+function updatePrintDate() {
+    const el = document.getElementById('printDate');
+    if (el) {
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        el.textContent = now.toLocaleDateString('id-ID', options) + ' WITA';
+    }
+}
+
+window.addEventListener('beforeprint', updatePrintDate);
+
+// Unduh Gambar Single Matrix / Komparasi Mandiri
+window.downloadSingleMatrix = function (elementId, matrixName) {
+    const targetEl = document.getElementById(elementId);
+    if (!targetEl) {
+        alert('Elemen perbandingan tidak ditemukan!');
+        return;
+    }
+
+    if (typeof html2canvas === 'undefined') {
+        alert('Pustaka html2canvas belum dimuat, silakan muat ulang halaman.');
+        return;
+    }
+
+    // Ambil identitas nopol untuk penamaan file
+    let nopolStr = 'Kendaraan';
+    const vhNopol = document.getElementById('vhNopol');
+    const inputNopol = document.getElementById('inputNopol');
+    if (vhNopol && vhNopol.textContent.trim() && vhNopol.textContent.trim() !== '-') {
+        nopolStr = vhNopol.textContent.trim().replace(/\s+/g, '_');
+    } else if (inputNopol && inputNopol.value.trim()) {
+        nopolStr = inputNopol.value.trim().toUpperCase().replace(/\s+/g, '_');
+    }
+
+    // Sembunyikan tombol download di dalam kartu saat pemotretan gambar
+    const btns = targetEl.querySelectorAll('.btn-download-card, .btn-download-card-ran');
+    const originalDisplays = [];
+    btns.forEach(btn => {
+        originalDisplays.push(btn.style.display);
+        btn.style.display = 'none';
+    });
+
+    // Indikator loading sementara pada tombol yang diklik
+    const activeBtn = event && event.currentTarget ? event.currentTarget : null;
+    let oldBtnHtml = '';
+    if (activeBtn) {
+        oldBtnHtml = activeBtn.innerHTML;
+        activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+    }
+
+    // Potret elemen dengan html2canvas (skala tinggi 2.5 untuk ketajaman retina/HD)
+    html2canvas(targetEl, {
+        scale: 2.5,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        onclone: function (clonedDoc) {
+            // Pastikan elemen clone memiliki border dan padding yang rapi
+            const clonedEl = clonedDoc.getElementById(elementId);
+            if (clonedEl) {
+                clonedEl.style.boxShadow = 'none';
+                clonedEl.style.margin = '0';
+            }
+        }
+    }).then(canvas => {
+        // Kembalikan tombol ke display semula
+        btns.forEach((btn, idx) => {
+            btn.style.display = originalDisplays[idx] || '';
+        });
+        if (activeBtn) {
+            activeBtn.innerHTML = oldBtnHtml;
+        }
+
+        // Trigger unduh gambar PNG
+        const imgData = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        const tglStr = new Date().toISOString().split('T')[0];
+        downloadLink.download = `Matrix_${matrixName}_${nopolStr}_${tglStr}.png`;
+        downloadLink.href = imgData;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }).catch(err => {
+        console.error('Gagal mengambil gambar matrix:', err);
+        btns.forEach((btn, idx) => {
+            btn.style.display = originalDisplays[idx] || '';
+        });
+        if (activeBtn) {
+            activeBtn.innerHTML = oldBtnHtml;
+        }
+        alert('Terjadi kesalahan saat memproses gambar.');
+    });
+};
+

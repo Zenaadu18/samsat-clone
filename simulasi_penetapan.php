@@ -15,6 +15,23 @@
 
 <div class="simulasi-container">
 
+    <!-- KOP RESMI CETAK PDF (HANYA MUNCUL SAAT PRINT / PDF) -->
+    <div class="print-official-header">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6px;">
+            <img src="assets/img/logo-ntt.png" alt="Logo NTT" style="width: 50px; height: auto;" onerror="this.style.display='none'">
+            <div style="text-align: center;">
+                <h2 style="font-size: 14.5px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b;">Pemerintah Provinsi Nusa Tenggara Timur</h2>
+                <h1 style="font-size: 17px; font-weight: 900; margin: 2px 0; color: #1e3a8a; text-transform: uppercase;">Badan Pendapatan Daerah</h1>
+                <p style="font-size: 10px; margin: 0; color: #475569;">Jl. Polisi Militer No. 1 Kupang - NTT | Portal Layanan Simulasi Penetapan Pajak Kendaraan</p>
+            </div>
+        </div>
+        <div style="border-bottom: 2.5px solid #1e3a8a; border-top: 1px solid #1e3a8a; height: 3px; margin: 6px 0 10px 0;"></div>
+        <div style="text-align: center; margin-bottom: 12px;">
+            <h3 style="font-size: 13px; font-weight: 800; margin: 0; text-transform: uppercase; color: #0f172a;">LEMBAR HASIL SIMULASI KOMPARASI PENETAPAN PAJAK KENDARAAN</h3>
+            <p style="font-size: 9.5px; color: #64748b; margin: 2px 0 0 0;">Dicetak pada: <span id="printDate">-</span> | Dokumen Resmi Hasil Simulasi Sistem Bapenda NTT</p>
+        </div>
+    </div>
+
     <!-- TOPBAR -->
     <div class="topbar">
         <a href="index.php" class="back-link">
@@ -229,6 +246,7 @@
             <div><span class="status-badge" id="infoStatus">-</span></div>
         </div>
     </div>
+</div>
 
     <!-- SIMULATION RESULTS -->
     <div id="simulasiResult" style="display: none;">
@@ -237,7 +255,7 @@
         <div class="comparison-grid">
 
             <!-- 1. NORMAL -->
-            <div class="comparison-card card-normal">
+            <div class="comparison-card card-normal" id="cardNormal">
                 <span class="card-header-badge badge-normal"><i class="fa-solid fa-circle"></i> Tanpa Keringanan</span>
                 <h3 class="card-title">Penetapan Normal</h3>
                 <p class="card-subtitle">Regulasi tarif standar tanpa program relaksasi</p>
@@ -274,10 +292,14 @@
                         <span class="val" id="normStnk">Rp 0</span>
                     </li>
                 </ul>
+
+                <button type="button" class="btn-download-card" onclick="downloadSingleMatrix('cardNormal', 'Normal')" title="Unduh Gambar Matrix Normal">
+                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
+                </button>
             </div>
 
             <!-- 2. PERGUB 54 -->
-            <div class="comparison-card card-pergub54">
+            <div class="comparison-card card-pergub54" id="cardPergub54">
                 <span class="card-header-badge badge-p54"><i class="fa-solid fa-clock-rotate-left"></i> Sept - Okt 2026</span>
                 <h3 class="card-title">Pergub 54</h3>
                 <p class="card-subtitle">Amnesti Pajak Periode September - Oktober</p>
@@ -316,10 +338,14 @@
                 </ul>
 
                 <p style="font-size: 12px; color: var(--text-soft); margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);" id="p54Ket"></p>
+
+                <button type="button" class="btn-download-card" onclick="downloadSingleMatrix('cardPergub54', 'Pergub54')" title="Unduh Gambar Matrix Pergub 54">
+                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
+                </button>
             </div>
 
             <!-- 3. Pergub 64 -->
-            <div class="comparison-card card-ranpergub">
+            <div class="comparison-card card-ranpergub" id="cardRanpergub">
                 <span class="card-header-badge badge-ran"><i class="fa-solid fa-bolt"></i> Nov - Des 2026</span>
                 <h3 class="card-title">Pergub 64</h3>
                 <p class="card-subtitle">Pemberian Keringanan Tambahan & Hapus Tunggakan</p>
@@ -358,6 +384,10 @@
                 </ul>
 
                 <p style="font-size: 12px; color: #047857; font-weight: 600; margin-top: auto; padding-top: 10px; border-top: 1px solid #bbf7d0;" id="ranKet"></p>
+
+                <button type="button" class="btn-download-card btn-download-card-ran" onclick="downloadSingleMatrix('cardRanpergub', 'Pergub64')" title="Unduh Gambar Matrix Pergub 64">
+                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
+                </button>
             </div>
 
         </div>
@@ -367,10 +397,15 @@
         </div>
 
         <!-- DETAILED COMPARATIVE TABLE -->
-        <div class="card-table-wrapper">
-            <div class="section-title">
-                <span><i class="fa-solid fa-table-list" style="margin-right: 8px; color: var(--primary);"></i>Matriks Perbandingan Rinci Komponen Penetapan</span>
-                <span style="font-size: 12.5px; font-weight: 600; color: var(--text-soft);">Satuan mata uang: Rupiah (IDR)</span>
+        <div class="card-table-wrapper" id="cardTableWrapper">
+            <div class="section-title" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <span><i class="fa-solid fa-table-list" style="margin-right: 8px; color: var(--primary);"></i>Matriks Perbandingan Rinci Komponen Penetapan</span>
+                    <div style="font-size: 12px; font-weight: 500; color: var(--text-soft); margin-top: 2px;">Satuan mata uang: Rupiah (IDR)</div>
+                </div>
+                <button type="button" class="btn-download-card" style="width: auto; margin-top: 0; padding: 6px 14px;" onclick="downloadSingleMatrix('cardTableWrapper', 'Tabel_Rinci')" title="Unduh Gambar Tabel Rinci">
+                    <i class="fa-solid fa-camera"></i> Unduh Gambar Tabel
+                </button>
             </div>
 
             <div class="table-responsive">
@@ -439,10 +474,15 @@
         </div>
 
         <!-- SIMULASI BBNKB -->
-        <div class="bbnkb-box">
-            <div class="section-title">
-                <span><i class="fa-solid fa-file-invoice" style="margin-right: 8px; color: #059669;"></i>Simulasi BBNKB (Bea Balik Nama Kendaraan Bermotor)</span>
-                <span id="bbnkbKategori" style="font-size: 13px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 4px 12px; border-radius: 999px;">-</span>
+        <div class="bbnkb-box" id="wrapperBbnkb">
+            <div class="section-title" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span><i class="fa-solid fa-file-invoice" style="margin-right: 8px; color: #059669;"></i>Simulasi BBNKB (Bea Balik Nama Kendaraan Bermotor)</span>
+                    <span id="bbnkbKategori" style="font-size: 13px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 4px 12px; border-radius: 999px;">-</span>
+                </div>
+                <button type="button" class="btn-download-card" style="width: auto; margin-top: 0; padding: 6px 14px;" onclick="downloadSingleMatrix('wrapperBbnkb', 'BBNKB')" title="Unduh Gambar Matrix BBNKB">
+                    <i class="fa-solid fa-camera"></i> Unduh Gambar BBNKB
+                </button>
             </div>
             <p style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px;">
                 Sesuai butir 2 Pergub 64: Pengurangan Dasar Pengenaan BBNKB Roda 2 & 3 sebesar <strong>15%</strong>, dan Roda 4+ sebesar <strong>20%</strong>.
@@ -508,6 +548,7 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="assets/js/simulasi_penetapan.js?v=<?= filemtime(__DIR__ . '/assets/js/simulasi_penetapan.js') ?>"></script>
 </body>
 </html>
