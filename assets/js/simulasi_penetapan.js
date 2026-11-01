@@ -288,10 +288,39 @@ function renderSimulasiResult(data) {
     const infoBar = document.getElementById('vehicleInfoBar');
     infoBar.classList.add('active');
 
-    document.getElementById('infoNopol').textContent = k.nopol;
-    document.getElementById('infoUnit').textContent = k.unit || `${k.merk} ${k.tipe}`;
-    document.getElementById('infoRoda').textContent = meta.kategori_roda;
-    document.getElementById('infoNotice').textContent = k.sd_notice || '-';
+    const safeSetText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+
+    const nopol = k.nopol || '-';
+    const pemilik = k.pemilik || k.nama || '-';
+    const jenis = k.jenis_kendaraan || '-';
+    const unitTipe = (k.merk && k.tipe) ? `${k.merk} / ${k.tipe}` : (k.unit || '-');
+
+    // Infobar Utama
+    safeSetText('infoNopol', nopol);
+    safeSetText('infoPemilik', pemilik);
+    safeSetText('infoJenis', jenis);
+    safeSetText('infoUnit', unitTipe);
+    safeSetText('infoRoda', meta.kategori_roda);
+    safeSetText('infoNotice', k.sd_notice || '-');
+
+    // Identitas Kendaraan di Area Kartu Komparasi (Ikut terfoto saat download/cetak)
+    safeSetText('rviNopol', nopol);
+    safeSetText('rviPemilik', pemilik);
+    safeSetText('rviJenis', jenis);
+    safeSetText('rviTipe', unitTipe);
+
+    // Identitas Kendaraan di Tabel Rinci Komponen
+    safeSetText('tblNopol', nopol);
+    safeSetText('tblPemilik', pemilik);
+    safeSetText('tblUnit', `${jenis} - ${unitTipe}`);
+
+    // Identitas Kendaraan di Tabel Simulasi BBNKB
+    safeSetText('bbnkbNopol', nopol);
+    safeSetText('bbnkbPemilik', pemilik);
+    safeSetText('bbnkbUnit', `${jenis} - ${unitTipe}`);
 
     const statusBadge = document.getElementById('infoStatus');
     statusBadge.textContent = meta.status_pembayaran;
@@ -303,12 +332,6 @@ function renderSimulasiResult(data) {
     } else {
         statusBadge.classList.add('status-terlambat');
     }
-
-    // Helper fungsi safe set text
-    const safeSetText = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-    };
 
     // 2. Tiga Kartu Komparasi
     // A. Normal
@@ -458,7 +481,9 @@ function salinRingkasanSimulasi() {
 
     const teks = `*SIMULASI PENETAPAN PAJAK KENDARAAN NTT*
 Nomor Polisi: ${k.nopol}
-Unit: ${k.unit} (${meta.kategori_roda})
+Nama Pemilik: ${k.pemilik || '-'}
+Jenis Kendaraan: ${k.jenis_kendaraan || '-'}
+Merk & Tipe: ${k.unit} (${meta.kategori_roda})
 Jatuh Tempo: ${k.sd_notice}
 Status: ${meta.status_pembayaran}
 Kanal Pembayaran: ${meta.kanal_bayar.toUpperCase()}

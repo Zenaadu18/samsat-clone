@@ -230,7 +230,15 @@
             <strong id="infoNopol">-</strong>
         </div>
         <div class="v-item">
-            <span>Merk & Tipe Kendaraan</span>
+            <span>Nama Pemilik</span>
+            <strong id="infoPemilik">-</strong>
+        </div>
+        <div class="v-item">
+            <span>Jenis Kendaraan</span>
+            <strong id="infoJenis">-</strong>
+        </div>
+        <div class="v-item">
+            <span>Merk & Tipe</span>
             <strong id="infoUnit">-</strong>
         </div>
         <div class="v-item">
@@ -264,6 +272,26 @@
         </div>
 
         <div id="comparisonCardsArea">
+            <!-- IDENTITAS KENDARAAN HASIL PERHITUNGAN -->
+            <div class="result-vehicle-identity" id="comparisonVehicleIdentity">
+                <div class="rvi-item">
+                    <span class="rvi-label"><i class="fa-solid fa-id-card"></i> Nomor Polisi</span>
+                    <span class="rvi-val" id="rviNopol" style="color: #1e3a8a;">-</span>
+                </div>
+                <div class="rvi-item">
+                    <span class="rvi-label"><i class="fa-solid fa-user"></i> Nama Pemilik</span>
+                    <span class="rvi-val" id="rviPemilik">-</span>
+                </div>
+                <div class="rvi-item">
+                    <span class="rvi-label"><i class="fa-solid fa-motorcycle"></i> Jenis Kendaraan</span>
+                    <span class="rvi-val" id="rviJenis">-</span>
+                </div>
+                <div class="rvi-item">
+                    <span class="rvi-label"><i class="fa-solid fa-tag"></i> Merk & Tipe</span>
+                    <span class="rvi-val" id="rviTipe">-</span>
+                </div>
+            </div>
+
             <!-- 3 COMPARISON CARDS -->
             <div class="comparison-grid">
 
@@ -411,6 +439,13 @@
                 </button>
             </div>
 
+            <!-- IDENTITAS KENDARAAN TABEL RINCI -->
+            <div class="result-table-identity">
+                <span><i class="fa-solid fa-id-card"></i> Nopol: <strong id="tblNopol">-</strong></span>
+                <span><i class="fa-solid fa-user"></i> Pemilik: <strong id="tblPemilik">-</strong></span>
+                <span><i class="fa-solid fa-car-side"></i> Jenis & Tipe: <strong id="tblUnit">-</strong></span>
+            </div>
+
             <div class="table-responsive">
                 <table class="simulasi-table">
                     <thead>
@@ -487,6 +522,13 @@
                     <i class="fa-solid fa-camera"></i>
                     <span>Unduh Gambar BBNKB</span>
                 </button>
+            </div>
+
+            <!-- IDENTITAS KENDARAAN SIMULASI BBNKB -->
+            <div class="result-table-identity">
+                <span><i class="fa-solid fa-id-card"></i> Nopol: <strong id="bbnkbNopol">-</strong></span>
+                <span><i class="fa-solid fa-user"></i> Pemilik: <strong id="bbnkbPemilik">-</strong></span>
+                <span><i class="fa-solid fa-car-side"></i> Jenis & Tipe: <strong id="bbnkbUnit">-</strong></span>
             </div>
             <p style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px;">
                 Sesuai butir 2 Pergub 64: Pengurangan Dasar Pengenaan BBNKB Roda 2 & 3 sebesar <strong>15%</strong>, dan Roda 4+ sebesar <strong>20%</strong>.
