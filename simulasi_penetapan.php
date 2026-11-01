@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/simulasi_penetapan.css">
+    <link rel="stylesheet" href="assets/css/simulasi_penetapan.css?v=<?= filemtime(__DIR__ . '/assets/css/simulasi_penetapan.css') ?>">
 </head>
 <body>
 
@@ -251,149 +251,151 @@
     <!-- SIMULATION RESULTS -->
     <div id="simulasiResult" style="display: none;">
 
-        <!-- 3 COMPARISON CARDS -->
-        <div class="comparison-grid">
-
-            <!-- 1. NORMAL -->
-            <div class="comparison-card card-normal" id="cardNormal">
-                <span class="card-header-badge badge-normal"><i class="fa-solid fa-circle"></i> Tanpa Keringanan</span>
-                <h3 class="card-title">Penetapan Normal</h3>
-                <p class="card-subtitle">Regulasi tarif standar tanpa program relaksasi</p>
-
-                <div class="card-price-box">
-                    <div class="price-label">Total Penetapan</div>
-                    <div class="price-val" id="normTotal">Rp 0</div>
-                    <div class="saving-tag" style="background: transparent; color: var(--text-muted);">Tidak ada potongan</div>
-                </div>
-
-                <ul class="item-breakdown">
-                    <li>
-                        <span class="label">PKB Tahun Berjalan</span>
-                        <span class="val" id="normPkbBerjalan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">PKB Masa Tunggakan</span>
-                        <span class="val" id="normPkbTunggakan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Opsen PKB (66%)</span>
-                        <span class="val" id="normOpsen">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Denda PKB & Opsen</span>
-                        <span class="val" id="normDendaPkb">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">SWDKLLJ & Denda</span>
-                        <span class="val" id="normSwdkllj">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Biaya STNK & TNKB</span>
-                        <span class="val" id="normStnk">Rp 0</span>
-                    </li>
-                </ul>
-
-                <button type="button" class="btn-download-card" onclick="downloadSingleMatrix('cardNormal', 'Normal')" title="Unduh Gambar Matrix Normal">
-                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
-                </button>
+        <!-- COMPARISON TOOLBAR WITH SINGLE DOWNLOAD BUTTON -->
+        <div class="comparison-toolbar">
+            <div class="comparison-toolbar-left">
+                <i class="fa-solid fa-layer-group" style="color: var(--primary); font-size: 16px;"></i>
+                <strong>Hasil Komparasi 3 Skenario Penetapan</strong>
             </div>
-
-            <!-- 2. PERGUB 54 -->
-            <div class="comparison-card card-pergub54" id="cardPergub54">
-                <span class="card-header-badge badge-p54"><i class="fa-solid fa-clock-rotate-left"></i> Sept - Okt 2026</span>
-                <h3 class="card-title">Pergub 54</h3>
-                <p class="card-subtitle">Amnesti Pajak Periode September - Oktober</p>
-
-                <div class="card-price-box">
-                    <div class="price-label">Total Penetapan</div>
-                    <div class="price-val" id="p54Total">Rp 0</div>
-                    <div class="saving-tag saving-p54" id="p54Hemat">Hemat Rp 0</div>
-                </div>
-
-                <ul class="item-breakdown">
-                    <li>
-                        <span class="label">PKB Tahun Berjalan</span>
-                        <span class="val" id="p54PkbBerjalan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">PKB Masa Tunggakan</span>
-                        <span class="val" id="p54PkbTunggakan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Opsen PKB (66%)</span>
-                        <span class="val" id="p54Opsen">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Denda PKB & Opsen</span>
-                        <span class="val free-tag" id="p54DendaPkb">Bebas 100%</span>
-                    </li>
-                    <li>
-                        <span class="label">SWDKLLJ & Denda</span>
-                        <span class="val" id="p54Swdkllj">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Biaya STNK & TNKB</span>
-                        <span class="val" id="p54Stnk">Rp 0</span>
-                    </li>
-                </ul>
-
-                <p style="font-size: 12px; color: var(--text-soft); margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);" id="p54Ket"></p>
-
-                <button type="button" class="btn-download-card" onclick="downloadSingleMatrix('cardPergub54', 'Pergub54')" title="Unduh Gambar Matrix Pergub 54">
-                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
-                </button>
-            </div>
-
-            <!-- 3. Pergub 64 -->
-            <div class="comparison-card card-ranpergub" id="cardRanpergub">
-                <span class="card-header-badge badge-ran"><i class="fa-solid fa-bolt"></i> Nov - Des 2026</span>
-                <h3 class="card-title">Pergub 64</h3>
-                <p class="card-subtitle">Pemberian Keringanan Tambahan & Hapus Tunggakan</p>
-
-                <div class="card-price-box">
-                    <div class="price-label">Total Penetapan</div>
-                    <div class="price-val" id="ranTotal">Rp 0</div>
-                    <div class="saving-tag saving-ran" id="ranHemat">Hemat Rp 0</div>
-                </div>
-
-                <ul class="item-breakdown">
-                    <li>
-                        <span class="label">PKB Tahun Berjalan <small id="ranBerjalanDiskon" style="color: #047857;"></small></span>
-                        <span class="val discounted" id="ranPkbBerjalan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">PKB Masa Tunggakan</span>
-                        <span class="val free-tag" id="ranPkbTunggakan">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Opsen PKB (66%)</span>
-                        <span class="val" id="ranOpsen">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Denda PKB & Opsen</span>
-                        <span class="val free-tag" id="ranDendaPkb">Dihapus 100%</span>
-                    </li>
-                    <li>
-                        <span class="label">SWDKLLJ & Denda</span>
-                        <span class="val" id="ranSwdkllj">Rp 0</span>
-                    </li>
-                    <li>
-                        <span class="label">Biaya STNK & TNKB</span>
-                        <span class="val" id="ranStnk">Rp 0</span>
-                    </li>
-                </ul>
-
-                <p style="font-size: 12px; color: #047857; font-weight: 600; margin-top: auto; padding-top: 10px; border-top: 1px solid #bbf7d0;" id="ranKet"></p>
-
-                <button type="button" class="btn-download-card btn-download-card-ran" onclick="downloadSingleMatrix('cardRanpergub', 'Pergub64')" title="Unduh Gambar Matrix Pergub 64">
-                    <i class="fa-solid fa-camera"></i> Unduh Gambar Matrix
-                </button>
-            </div>
-
+            <button type="button" class="btn-matrix-download" onclick="downloadComparisonMatrix()" id="btnDownloadComparison" title="Unduh Gambar Komparasi 3 Skenario">
+                <i class="fa-solid fa-camera"></i>
+                <span>Unduh Gambar Komparasi</span>
+            </button>
         </div>
 
-        <!-- SELISIH HIGHLIGHT BANNER -->
-        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); border: 1.5px solid #a7f3d0; border-radius: 16px; padding: 16px 22px; margin-bottom: 28px; text-align: center; font-size: 15px;" id="selisihRanVsP54">
+        <div id="comparisonCardsArea">
+            <!-- 3 COMPARISON CARDS -->
+            <div class="comparison-grid">
+
+                <!-- 1. NORMAL -->
+                <div class="comparison-card card-normal" id="cardNormal">
+                    <span class="card-header-badge badge-normal"><i class="fa-solid fa-circle"></i> Tanpa Keringanan</span>
+                    <h3 class="card-title">Penetapan Normal</h3>
+                    <p class="card-subtitle">Regulasi tarif standar tanpa program relaksasi</p>
+
+                    <div class="card-price-box">
+                        <div class="price-label">Total Penetapan</div>
+                        <div class="price-val" id="normTotal">Rp 0</div>
+                        <div class="saving-tag" style="background: transparent; color: var(--text-muted);">Tidak ada potongan</div>
+                    </div>
+
+                    <ul class="item-breakdown">
+                        <li>
+                            <span class="label">PKB Tahun Berjalan</span>
+                            <span class="val" id="normPkbBerjalan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">PKB Masa Tunggakan</span>
+                            <span class="val" id="normPkbTunggakan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Opsen PKB (66%)</span>
+                            <span class="val" id="normOpsen">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Denda PKB & Opsen</span>
+                            <span class="val" id="normDendaPkb">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">SWDKLLJ & Denda</span>
+                            <span class="val" id="normSwdkllj">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Biaya STNK & TNKB</span>
+                            <span class="val" id="normStnk">Rp 0</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- 2. PERGUB 54 -->
+                <div class="comparison-card card-pergub54" id="cardPergub54">
+                    <span class="card-header-badge badge-p54"><i class="fa-solid fa-clock-rotate-left"></i> Sept - Okt 2026</span>
+                    <h3 class="card-title">Pergub 54</h3>
+                    <p class="card-subtitle">Amnesti Pajak Periode September - Oktober</p>
+
+                    <div class="card-price-box">
+                        <div class="price-label">Total Penetapan</div>
+                        <div class="price-val" id="p54Total">Rp 0</div>
+                        <div class="saving-tag saving-p54" id="p54Hemat">Hemat Rp 0</div>
+                    </div>
+
+                    <ul class="item-breakdown">
+                        <li>
+                            <span class="label">PKB Tahun Berjalan</span>
+                            <span class="val" id="p54PkbBerjalan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">PKB Masa Tunggakan</span>
+                            <span class="val" id="p54PkbTunggakan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Opsen PKB (66%)</span>
+                            <span class="val" id="p54Opsen">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Denda PKB & Opsen</span>
+                            <span class="val free-tag" id="p54DendaPkb">Bebas 100%</span>
+                        </li>
+                        <li>
+                            <span class="label">SWDKLLJ & Denda</span>
+                            <span class="val" id="p54Swdkllj">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Biaya STNK & TNKB</span>
+                            <span class="val" id="p54Stnk">Rp 0</span>
+                        </li>
+                    </ul>
+
+                    <p style="font-size: 12px; color: var(--text-soft); margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);" id="p54Ket"></p>
+                </div>
+
+                <!-- 3. Pergub 64 -->
+                <div class="comparison-card card-ranpergub" id="cardRanpergub">
+                    <span class="card-header-badge badge-ran"><i class="fa-solid fa-bolt"></i> Nov - Des 2026</span>
+                    <h3 class="card-title">Pergub 64</h3>
+                    <p class="card-subtitle">Pemberian Keringanan Tambahan & Hapus Tunggakan</p>
+
+                    <div class="card-price-box">
+                        <div class="price-label">Total Penetapan</div>
+                        <div class="price-val" id="ranTotal">Rp 0</div>
+                        <div class="saving-tag saving-ran" id="ranHemat">Hemat Rp 0</div>
+                    </div>
+
+                    <ul class="item-breakdown">
+                        <li>
+                            <span class="label">PKB Tahun Berjalan <small id="ranBerjalanDiskon" style="color: #047857;"></small></span>
+                            <span class="val discounted" id="ranPkbBerjalan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">PKB Masa Tunggakan</span>
+                            <span class="val free-tag" id="ranPkbTunggakan">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Opsen PKB (66%)</span>
+                            <span class="val" id="ranOpsen">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Denda PKB & Opsen</span>
+                            <span class="val free-tag" id="ranDendaPkb">Dihapus 100%</span>
+                        </li>
+                        <li>
+                            <span class="label">SWDKLLJ & Denda</span>
+                            <span class="val" id="ranSwdkllj">Rp 0</span>
+                        </li>
+                        <li>
+                            <span class="label">Biaya STNK & TNKB</span>
+                            <span class="val" id="ranStnk">Rp 0</span>
+                        </li>
+                    </ul>
+
+                    <p style="font-size: 12px; color: #047857; font-weight: 600; margin-top: auto; padding-top: 10px; border-top: 1px solid #bbf7d0;" id="ranKet"></p>
+                </div>
+
+            </div>
+
+            <!-- SELISIH HIGHLIGHT BANNER -->
+            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); border: 1.5px solid #a7f3d0; border-radius: 16px; padding: 16px 22px; margin-bottom: 28px; text-align: center; font-size: 15px;" id="selisihRanVsP54">
+            </div>
         </div>
 
         <!-- DETAILED COMPARATIVE TABLE -->
@@ -403,8 +405,9 @@
                     <span><i class="fa-solid fa-table-list" style="margin-right: 8px; color: var(--primary);"></i>Matriks Perbandingan Rinci Komponen Penetapan</span>
                     <div style="font-size: 12px; font-weight: 500; color: var(--text-soft); margin-top: 2px;">Satuan mata uang: Rupiah (IDR)</div>
                 </div>
-                <button type="button" class="btn-download-card" style="width: auto; margin-top: 0; padding: 6px 14px;" onclick="downloadSingleMatrix('cardTableWrapper', 'Tabel_Rinci')" title="Unduh Gambar Tabel Rinci">
-                    <i class="fa-solid fa-camera"></i> Unduh Gambar Tabel
+                <button type="button" class="btn-matrix-download" onclick="downloadSingleMatrix('cardTableWrapper', 'Tabel_Rinci')" title="Unduh Gambar Tabel Rinci">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Unduh Gambar Tabel</span>
                 </button>
             </div>
 
@@ -480,8 +483,9 @@
                     <span><i class="fa-solid fa-file-invoice" style="margin-right: 8px; color: #059669;"></i>Simulasi BBNKB (Bea Balik Nama Kendaraan Bermotor)</span>
                     <span id="bbnkbKategori" style="font-size: 13px; font-weight: 700; color: #047857; background: #ecfdf5; padding: 4px 12px; border-radius: 999px;">-</span>
                 </div>
-                <button type="button" class="btn-download-card" style="width: auto; margin-top: 0; padding: 6px 14px;" onclick="downloadSingleMatrix('wrapperBbnkb', 'BBNKB')" title="Unduh Gambar Matrix BBNKB">
-                    <i class="fa-solid fa-camera"></i> Unduh Gambar BBNKB
+                <button type="button" class="btn-matrix-download" onclick="downloadSingleMatrix('wrapperBbnkb', 'BBNKB')" title="Unduh Gambar Matrix BBNKB">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Unduh Gambar BBNKB</span>
                 </button>
             </div>
             <p style="font-size: 13px; color: var(--text-soft); margin-bottom: 16px;">

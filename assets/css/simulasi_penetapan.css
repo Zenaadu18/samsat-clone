@@ -778,46 +778,73 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* PRINT & DOWNLOAD CARD STYLES */
+/* COMPARISON TOOLBAR & HIGH-END DOWNLOAD BUTTON */
 .print-official-header {
     display: none;
 }
 
-.btn-download-card {
-    margin-top: 14px;
-    padding: 8px 14px;
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    border-radius: var(--radius-sm);
-    font-family: inherit;
-    font-size: 11.5px;
-    font-weight: 700;
-    cursor: pointer;
+.comparison-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding: 12px 18px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.comparison-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.btn-matrix-download {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    width: 100%;
-    transition: all 0.2s ease;
+    gap: 8px;
+    padding: 9px 18px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.2px;
+    text-decoration: none;
 }
 
-.btn-download-card:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-    border-color: #94a3b8;
+.btn-matrix-download:hover {
+    background: linear-gradient(135deg, #172554 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.38);
+    transform: translateY(-1.5px);
+    color: #ffffff !important;
 }
 
-.btn-download-card-ran {
-    background: #ecfdf5;
-    color: #065f46;
-    border-color: #a7f3d0;
+.btn-matrix-download:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
-.btn-download-card-ran:hover {
-    background: #d1fae5;
-    color: #047857;
-    border-color: #6ee7b7;
+.btn-matrix-download i {
+    font-size: 13px;
+    transition: transform 0.2s ease;
+}
+
+.btn-matrix-download:hover i {
+    transform: scale(1.1);
 }
 
 /* RESPONSIVE */
@@ -868,6 +895,8 @@ body {
     .policy-card,
     .card-control,
     .action-bar,
+    .comparison-toolbar,
+    .btn-matrix-download,
     .btn-download-card,
     .btn-download-card-ran {
         display: none !important;

@@ -507,7 +507,7 @@ function updatePrintDate() {
 
 window.addEventListener('beforeprint', updatePrintDate);
 
-// Unduh Gambar Single Matrix / Komparasi Mandiri
+// Unduh Gambar Single Matrix / Komparasi Mandiri (Tabel / BBNKB)
 window.downloadSingleMatrix = function (elementId, matrixName) {
     const targetEl = document.getElementById(elementId);
     if (!targetEl) {
@@ -530,8 +530,8 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
         nopolStr = inputNopol.value.trim().toUpperCase().replace(/\s+/g, '_');
     }
 
-    // Sembunyikan tombol download di dalam kartu saat pemotretan gambar
-    const btns = targetEl.querySelectorAll('.btn-download-card, .btn-download-card-ran');
+    // Sembunyikan tombol download di dalam container saat pemotretan gambar
+    const btns = targetEl.querySelectorAll('.btn-matrix-download, .btn-download-card, .btn-download-card-ran');
     const originalDisplays = [];
     btns.forEach(btn => {
         originalDisplays.push(btn.style.display);
@@ -543,17 +543,16 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
     let oldBtnHtml = '';
     if (activeBtn) {
         oldBtnHtml = activeBtn.innerHTML;
-        activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+        activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memproses...</span>';
     }
 
-    // Potret elemen dengan html2canvas (skala tinggi 2.5 untuk ketajaman retina/HD)
+    // Potret elemen dengan html2canvas (skala tinggi 2.4 untuk ketajaman retina/HD)
     html2canvas(targetEl, {
-        scale: 2.5,
+        scale: 2.4,
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
         onclone: function (clonedDoc) {
-            // Pastikan elemen clone memiliki border dan padding yang rapi
             const clonedEl = clonedDoc.getElementById(elementId);
             if (clonedEl) {
                 clonedEl.style.boxShadow = 'none';
@@ -587,6 +586,73 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
             activeBtn.innerHTML = oldBtnHtml;
         }
         alert('Terjadi kesalahan saat memproses gambar.');
+    });
+};
+
+// Unduh Gambar Seluruh Komparasi 3 Skenario (Comparison Grid + Selisih)
+window.downloadComparisonMatrix = function () {
+    const targetEl = document.getElementById('comparisonCardsArea');
+    if (!targetEl) {
+        alert('Area komparasi tidak ditemukan!');
+        return;
+    }
+
+    if (typeof html2canvas === 'undefined') {
+        alert('Pustaka html2canvas belum dimuat, silakan muat ulang halaman.');
+        return;
+    }
+
+    let nopolStr = 'Kendaraan';
+    const vhNopol = document.getElementById('vhNopol');
+    const inputNopol = document.getElementById('inputNopol');
+    if (vhNopol && vhNopol.textContent.trim() && vhNopol.textContent.trim() !== '-') {
+        nopolStr = vhNopol.textContent.trim().replace(/\s+/g, '_');
+    } else if (inputNopol && inputNopol.value.trim()) {
+        nopolStr = inputNopol.value.trim().toUpperCase().replace(/\s+/g, '_');
+    }
+
+    const btn = document.getElementById('btnDownloadComparison');
+    let oldBtnHtml = '';
+    if (btn) {
+        oldBtnHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memproses Komparasi...</span>';
+        btn.disabled = true;
+    }
+
+    html2canvas(targetEl, {
+        scale: 2.4,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        onclone: function (clonedDoc) {
+            const clonedEl = clonedDoc.getElementById('comparisonCardsArea');
+            if (clonedEl) {
+                clonedEl.style.padding = '16px';
+                clonedEl.style.background = '#ffffff';
+                clonedEl.style.borderRadius = '16px';
+            }
+        }
+    }).then(canvas => {
+        if (btn) {
+            btn.innerHTML = oldBtnHtml;
+            btn.disabled = false;
+        }
+
+        const imgData = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        const tglStr = new Date().toISOString().split('T')[0];
+        downloadLink.download = `Komparasi_3_Skenario_${nopolStr}_${tglStr}.png`;
+        downloadLink.href = imgData;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }).catch(err => {
+        console.error('Gagal mengambil gambar komparasi:', err);
+        if (btn) {
+            btn.innerHTML = oldBtnHtml;
+            btn.disabled = false;
+        }
+        alert('Terjadi kesalahan saat memproses gambar komparasi.');
     });
 };
 
