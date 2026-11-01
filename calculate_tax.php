@@ -240,18 +240,17 @@ $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
 
 
 /* ============================================================================
- * 4. CARI NJKB & BOBOT
+ * 4. CARI NJKB & BOBOT (SMART MULTI-TIER FALLBACK)
  * ========================================================================== */
 
-$njkb = 0;
-$bobot = 0;
+$njkb = 0.0;
+$bobot = 0.0;
+$isNjkbEstimasi = false;
+$sumberNjkb = 'Exact Match';
 
-
-/*
- * Exact match.
- */
+// --- Level 1: Exact Match (Merk + Tipe + Tahun) ---
 $stmt = $conn->prepare(
-    'SELECT njkb, bobot
+    'SELECT njkb, bobot, tipe
      FROM njkb_data
      WHERE merk = ?
        AND tipe = ?
@@ -259,53 +258,23 @@ $stmt = $conn->prepare(
      LIMIT 1'
 );
 
-if (!$stmt) {
+if ($stmt) {
+    $stmt->bind_param('ssi', $merk, $tipe, $tahun);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
-    responseJson([
-        'status'  => 'error',
-        'message' => 'Gagal menyiapkan query NJKB.'
-    ], 500);
+    if ($row) {
+        $njkb = (float)$row['njkb'];
+        $bobot = (float)$row['bobot'];
+        $sumberNjkb = 'Exact: ' . $row['tipe'];
+    }
 }
 
-
-$stmt->bind_param(
-    'ssi',
-    $merk,
-    $tipe,
-    $tahun
-);
-
-$stmt->execute();
-
-$row = $stmt
-    ->get_result()
-    ->fetch_assoc();
-
-$stmt->close();
-
-
-/*
- * Jika exact match ditemukan.
- */
-if ($row) {
-
-    $njkb =
-        (float)$row['njkb'];
-
-    $bobot =
-        (float)$row['bobot'];
-
-} else {
-
-    /*
-     * Fallback LIKE + tahun.
-     */
-    $merkLike = '%' . $merk . '%';
-    $tipeLike = '%' . $tipe . '%';
-
-
+// --- Level 2: Fallback LIKE Tipe Lengkap + Tahun Buat ---
+if ($njkb <= 0.0) {
     $stmt2 = $conn->prepare(
-        'SELECT njkb, bobot
+        'SELECT njkb, bobot, tipe
          FROM njkb_data
          WHERE merk LIKE ?
            AND tipe LIKE ?
@@ -313,96 +282,165 @@ if ($row) {
          LIMIT 1'
     );
 
+    if ($stmt2) {
+        $merkLike = '%' . $merk . '%';
+        $tipeLike = '%' . $tipe . '%';
+        $stmt2->bind_param('ssi', $merkLike, $tipeLike, $tahun);
+        $stmt2->execute();
+        $row2 = $stmt2->get_result()->fetch_assoc();
+        $stmt2->close();
 
-    if (!$stmt2) {
-
-        responseJson([
-            'status'  => 'error',
-            'message' => 'Gagal menyiapkan query fallback NJKB.'
-        ], 500);
+        if ($row2) {
+            $njkb = (float)$row2['njkb'];
+            $bobot = (float)$row2['bobot'];
+            $sumberNjkb = 'Pola: ' . $row2['tipe'];
+        }
     }
+}
 
-
-    $stmt2->bind_param(
-        'ssi',
-        $merkLike,
-        $tipeLike,
-        $tahun
+// --- Level 3: Fallback LIKE Tipe Lengkap + Tahun Terdekat ---
+if ($njkb <= 0.0) {
+    $stmt3 = $conn->prepare(
+        'SELECT njkb, bobot, tipe
+         FROM njkb_data
+         WHERE merk LIKE ?
+           AND tipe LIKE ?
+         ORDER BY ABS(tahun_buat - ?) ASC
+         LIMIT 1'
     );
 
-    $stmt2->execute();
+    if ($stmt3) {
+        $merkLike = '%' . $merk . '%';
+        $tipeLike = '%' . $tipe . '%';
+        $stmt3->bind_param('ssi', $merkLike, $tipeLike, $tahun);
+        $stmt3->execute();
+        $row3 = $stmt3->get_result()->fetch_assoc();
+        $stmt3->close();
 
-    $row2 = $stmt2
-        ->get_result()
-        ->fetch_assoc();
+        if ($row3) {
+            $njkb = (float)$row3['njkb'];
+            $bobot = (float)$row3['bobot'];
+            $sumberNjkb = 'Tahun Terdekat: ' . $row3['tipe'];
+        }
+    }
+}
 
-    $stmt2->close();
+// --- Level 4: Ekstraksi Teks Bersih / Kata Kunci Model (Misal: 3C1 (V-IXION/FZ150) -> V-IXION) ---
+if ($njkb <= 0.0) {
+    $keywords = [];
 
+    // Ambil isi tanda kurung
+    if (preg_match('/\((.*?)\)/', $tipe, $matches)) {
+        $inside = trim($matches[1]);
+        $subParts = preg_split('/[\/\,\-\s]+/', $inside);
+        foreach ($subParts as $sp) {
+            $sp = trim($sp);
+            if (strlen($sp) >= 3 && !in_array($sp, $keywords, true)) {
+                $keywords[] = $sp;
+            }
+        }
+        if (strlen($inside) >= 3 && !in_array($inside, $keywords, true)) {
+            $keywords[] = $inside;
+        }
+    }
 
-    if ($row2) {
+    // Ambil kata-kata mandiri
+    $words = preg_split('/[\s\/\(\)\,\-]+/', $tipe);
+    foreach ($words as $w) {
+        $w = trim($w);
+        if (strlen($w) >= 3 && !in_array($w, $keywords, true)) {
+            $keywords[] = $w;
+        }
+    }
 
-        $njkb =
-            (float)$row2['njkb'];
-
-        $bobot =
-            (float)$row2['bobot'];
-
-    } else {
-
-        /*
-         * Fallback terakhir:
-         * ambil tahun paling baru.
-         */
-        $stmt3 = $conn->prepare(
-            'SELECT njkb, bobot
+    foreach ($keywords as $kw) {
+        $stmtKw = $conn->prepare(
+            'SELECT njkb, bobot, tipe
              FROM njkb_data
              WHERE merk LIKE ?
                AND tipe LIKE ?
-             ORDER BY tahun_buat DESC
+             ORDER BY ABS(tahun_buat - ?) ASC
              LIMIT 1'
         );
 
+        if ($stmtKw) {
+            $merkLike = '%' . $merk . '%';
+            $kwLike = '%' . $kw . '%';
+            $stmtKw->bind_param('ssi', $merkLike, $kwLike, $tahun);
+            $stmtKw->execute();
+            $rowKw = $stmtKw->get_result()->fetch_assoc();
+            $stmtKw->close();
 
-        if (!$stmt3) {
-
-            responseJson([
-                'status'  => 'error',
-                'message' => 'Gagal menyiapkan query NJKB terakhir.'
-            ], 500);
+            if ($rowKw) {
+                $njkb = (float)$rowKw['njkb'];
+                $bobot = (float)$rowKw['bobot'];
+                $sumberNjkb = 'Model ' . $kw . ' (' . $rowKw['tipe'] . ')';
+                break;
+            }
         }
+    }
+}
 
+// --- Level 5: Fallback Model Sejenis dari Merk yang Sama (Tahun Terdekat) ---
+if ($njkb <= 0.0 && !empty($merk)) {
+    $stmtMerk = $conn->prepare(
+        'SELECT njkb, bobot, tipe
+         FROM njkb_data
+         WHERE merk LIKE ?
+         ORDER BY ABS(tahun_buat - ?) ASC
+         LIMIT 1'
+    );
 
-        $stmt3->bind_param(
-            'ss',
-            $merkLike,
-            $tipeLike
-        );
+    if ($stmtMerk) {
+        $merkLike = '%' . $merk . '%';
+        $stmtMerk->bind_param('si', $merkLike, $tahun);
+        $stmtMerk->execute();
+        $rowMerk = $stmtMerk->get_result()->fetch_assoc();
+        $stmtMerk->close();
 
-        $stmt3->execute();
-
-        $row3 = $stmt3
-            ->get_result()
-            ->fetch_assoc();
-
-        $stmt3->close();
-
-
-        if ($row3) {
-
-            $njkb =
-                (float)$row3['njkb'];
-
-            $bobot =
-                (float)$row3['bobot'];
-
-        } else {
-
-            responseJson([
-                'status'  => 'error',
-                'message' =>
-                    "Data NJKB tidak ditemukan untuk {$merk} - {$tipe} ({$tahun})."
-            ], 404);
+        if ($rowMerk) {
+            $njkb = (float)$rowMerk['njkb'];
+            $bobot = (float)$rowMerk['bobot'];
+            $isNjkbEstimasi = true;
+            $sumberNjkb = 'Estimasi Merk ' . $merk . ' (' . $rowMerk['tipe'] . ')';
         }
+    }
+}
+
+// --- Level 6: Safety Net Standar Kategori Kendaraan (Mencegah Blank/Error) ---
+if ($njkb <= 0.0) {
+    $isNjkbEstimasi = true;
+    $isMotorCheck = (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250));
+
+    if ($isMotorCheck) {
+        $njkb = 14000000.0;
+        $bobot = 1.0;
+        $sumberNjkb = 'Estimasi Standar Sepeda Motor';
+    } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
+        $njkb = 250000000.0;
+        $bobot = 1.3;
+        $sumberNjkb = 'Estimasi Standar Truk/Bus';
+    } elseif (strpos($jenisKend, 'PICK') !== false) {
+        $njkb = 120000000.0;
+        $bobot = 1.085;
+        $sumberNjkb = 'Estimasi Standar Pick-up';
+    } else {
+        $njkb = 160000000.0;
+        $bobot = 1.025;
+        $sumberNjkb = 'Estimasi Standar Minibus/Sedan';
+    }
+}
+
+// --- Proteksi Fallback Bobot Kendaraan ---
+if ($bobot <= 0.0) {
+    if (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250)) {
+        $bobot = 1.0;
+    } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
+        $bobot = 1.3;
+    } elseif (strpos($jenisKend, 'PICK') !== false) {
+        $bobot = 1.085;
+    } else {
+        $bobot = 1.025;
     }
 }
 
@@ -633,6 +671,12 @@ responseJson([
 
         'dp_pkb' =>
             round($dpPkb),
+
+        'is_njkb_estimasi' =>
+            $isNjkbEstimasi,
+
+        'sumber_njkb' =>
+            $sumberNjkb,
 
 
         /* ---------------------------------------------------------------

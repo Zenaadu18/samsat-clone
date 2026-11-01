@@ -562,6 +562,11 @@ function getTarifSwdkllj(
         strpos($kJrUpper, 'SEPEDA MOTOR') !== false ||
         strpos($jenisUpper, 'SEPEDA MOTOR') !== false;
 
+    // Fallback cerdas jika kapasitas mesin / isi cylinder tidak tercatat (0 / kosong)
+    if ($isiCylinder <= 0) {
+        $isiCylinder = $isMotor ? 125 : 1500;
+    }
+
     if ($isMotor) {
         if ($isiCylinder < 50)   return $getTarif('A');
         if ($isiCylinder <= 250) return $getTarif('C1');

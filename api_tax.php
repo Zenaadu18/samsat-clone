@@ -101,9 +101,9 @@ $uptAsal = trim((string)($apiData['UPT_ASAL'] ?? ''));
 
 $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? ''))); // <-- Tambahkan baris ini
 
-// Cari NJKB & Bobot
-$njkb = 0; $bobot = 0;
-$stmt = $conn->prepare('SELECT njkb, bobot FROM njkb_data WHERE merk = ? AND tipe = ? AND tahun_buat = ? LIMIT 1');
+// Cari NJKB & Bobot (Multi-Tier Fallback)
+$njkb = 0.0; $bobot = 0.0;
+$stmt = $conn->prepare('SELECT njkb, bobot, tipe FROM njkb_data WHERE merk = ? AND tipe = ? AND tahun_buat = ? LIMIT 1');
 if ($stmt) {
     $stmt->bind_param('ssi', $merk, $tipe, $tahun);
     $stmt->execute();
@@ -115,11 +115,11 @@ if ($stmt) {
     }
 }
 
-if ($njkb === 0.0) {
-    $stmt2 = $conn->prepare('SELECT njkb, bobot FROM njkb_data WHERE merk LIKE ? AND tipe LIKE ? ORDER BY tahun_buat DESC LIMIT 1');
+if ($njkb <= 0.0) {
+    $stmt2 = $conn->prepare('SELECT njkb, bobot, tipe FROM njkb_data WHERE merk LIKE ? AND tipe LIKE ? ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1');
     if ($stmt2) {
         $mLike = '%' . $merk . '%'; $tLike = '%' . $tipe . '%';
-        $stmt2->bind_param('ss', $mLike, $tLike);
+        $stmt2->bind_param('ssi', $mLike, $tLike, $tahun);
         $stmt2->execute();
         $row2 = $stmt2->get_result()->fetch_assoc();
         $stmt2->close();
@@ -127,6 +127,81 @@ if ($njkb === 0.0) {
             $njkb = (float)$row2['njkb'];
             $bobot = (float)$row2['bobot'];
         }
+    }
+}
+
+// Ekstraksi kata model jika masih 0
+if ($njkb <= 0.0) {
+    $keywords = [];
+    if (preg_match('/\((.*?)\)/', $tipe, $matches)) {
+        $inside = trim($matches[1]);
+        $subParts = preg_split('/[\/\,\-\s]+/', $inside);
+        foreach ($subParts as $sp) {
+            $sp = trim($sp);
+            if (strlen($sp) >= 3 && !in_array($sp, $keywords, true)) $keywords[] = $sp;
+        }
+    }
+    $words = preg_split('/[\s\/\(\)\,\-]+/', $tipe);
+    foreach ($words as $w) {
+        $w = trim($w);
+        if (strlen($w) >= 3 && !in_array($w, $keywords, true)) $keywords[] = $w;
+    }
+    foreach ($keywords as $kw) {
+        $stmtKw = $conn->prepare('SELECT njkb, bobot, tipe FROM njkb_data WHERE merk LIKE ? AND tipe LIKE ? ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1');
+        if ($stmtKw) {
+            $mLike = '%' . $merk . '%'; $kwLike = '%' . $kw . '%';
+            $stmtKw->bind_param('ssi', $mLike, $kwLike, $tahun);
+            $stmtKw->execute();
+            $rowKw = $stmtKw->get_result()->fetch_assoc();
+            $stmtKw->close();
+            if ($rowKw) {
+                $njkb = (float)$rowKw['njkb'];
+                $bobot = (float)$rowKw['bobot'];
+                break;
+            }
+        }
+    }
+}
+
+// Fallback model sejenis merk tersebut
+if ($njkb <= 0.0 && !empty($merk)) {
+    $stmtMerk = $conn->prepare('SELECT njkb, bobot, tipe FROM njkb_data WHERE merk LIKE ? ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1');
+    if ($stmtMerk) {
+        $mLike = '%' . $merk . '%';
+        $stmtMerk->bind_param('si', $mLike, $tahun);
+        $stmtMerk->execute();
+        $rowMerk = $stmtMerk->get_result()->fetch_assoc();
+        $stmtMerk->close();
+        if ($rowMerk) {
+            $njkb = (float)$rowMerk['njkb'];
+            $bobot = (float)$rowMerk['bobot'];
+        }
+    }
+}
+
+// Safety net default
+if ($njkb <= 0.0) {
+    $isMotorCheck = (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250));
+    if ($isMotorCheck) {
+        $njkb = 14000000.0; $bobot = 1.0;
+    } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
+        $njkb = 250000000.0; $bobot = 1.3;
+    } elseif (strpos($jenisKend, 'PICK') !== false) {
+        $njkb = 120000000.0; $bobot = 1.085;
+    } else {
+        $njkb = 160000000.0; $bobot = 1.025;
+    }
+}
+
+if ($bobot <= 0.0) {
+    if (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250)) {
+        $bobot = 1.0;
+    } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
+        $bobot = 1.3;
+    } elseif (strpos($jenisKend, 'PICK') !== false) {
+        $bobot = 1.085;
+    } else {
+        $bobot = 1.025;
     }
 }
 
