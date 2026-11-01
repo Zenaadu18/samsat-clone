@@ -1,0 +1,34 @@
+# BEGIN cPanel-generated php ini directives, do not edit
+<IfModule php8_module>
+   php_value error_log "/home/senacode/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule lsapi_module>
+   php_value error_log "/home/senacode/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+# END cPanel-generated php ini directives, do not edit
+
+# ==========================================
+# CUSTOM REWRITE RULES
+# ==========================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Matikan fitur tebak file otomatis dari Apache yang sering bentrok
+    Options -MultiViews
+
+    # 1. Force Redirect HTTP ke HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # 2. Paksa hapus .php HANYA jika bukan request POST (Pengecualian API)
+    RewriteCond %{REQUEST_METHOD} !POST
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^\ ]+)\.php
+    RewriteRule ^/?(.*)\.php$ /$1 [L,R=301]
+
+    # 3. Proses internal file .php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}\.php -f
+    RewriteRule ^(.*)$ $1.php [NC,L]
+</IfModule>
