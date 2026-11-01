@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="Portal Layanan BAPENDA NTT - Pusat Layanan Informasi Pajak dan Aset Daerah Provinsi NTT">
+    <meta name="description" content="Cek Pajak Kendaraan Bermotor">
 
-    <title>Portal Layanan BAPENDA NTT</title>
+    <title>Cek Pajak Kendaraan Bermotor</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

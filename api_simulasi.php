@@ -1,7 +1,7 @@
 <?php
 // api_simulasi.php
 // Endpoint API untuk Simulasi Komparasi Penetapan Pajak Kendaraan NTT:
-// Normal vs Pergub 54 vs Ranpergub
+// Normal vs Pergub 54 vs Pergub 64
 
 header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");

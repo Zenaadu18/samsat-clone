@@ -507,7 +507,7 @@ function updatePrintDate() {
 
 window.addEventListener('beforeprint', updatePrintDate);
 
-// Unduh Gambar Single Matrix / Komparasi Mandiri (Tabel / BBNKB)
+// Unduh Gambar Single Matrix / Komparasi Mandiri (Tabel / BBNKB) - Selalu Landscape Desktop
 window.downloadSingleMatrix = function (elementId, matrixName) {
     const targetEl = document.getElementById(elementId);
     if (!targetEl) {
@@ -544,19 +544,51 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
     if (activeBtn) {
         oldBtnHtml = activeBtn.innerHTML;
         activeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memproses...</span>';
+        activeBtn.disabled = true;
     }
 
-    // Potret elemen dengan html2canvas (skala tinggi 2.4 untuk ketajaman retina/HD)
+    // Potret elemen dengan html2canvas (Dipaksa Landscape Desktop 1180px di semua perangkat termasuk HP)
     html2canvas(targetEl, {
-        scale: 2.4,
+        scale: 2,
+        windowWidth: 1280,
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
         onclone: function (clonedDoc) {
             const clonedEl = clonedDoc.getElementById(elementId);
             if (clonedEl) {
+                clonedEl.style.width = '1140px';
+                clonedEl.style.minWidth = '1140px';
+                clonedEl.style.maxWidth = '1140px';
+                clonedEl.style.padding = '24px';
+                clonedEl.style.background = '#ffffff';
                 clonedEl.style.boxShadow = 'none';
                 clonedEl.style.margin = '0';
+                clonedEl.style.borderRadius = '16px';
+
+                const tableResp = clonedEl.querySelector('.table-responsive');
+                if (tableResp) {
+                    tableResp.style.overflow = 'visible';
+                    tableResp.style.width = '100%';
+                }
+                const table = clonedEl.querySelector('.simulasi-table');
+                if (table) {
+                    table.style.width = '100%';
+                    table.style.minWidth = '1080px';
+                }
+
+                // Watermark sisi kanan bawah
+                const watermarkDiv = clonedDoc.createElement('div');
+                watermarkDiv.style.display = 'flex';
+                watermarkDiv.style.justifyContent = 'flex-end';
+                watermarkDiv.style.alignItems = 'center';
+                watermarkDiv.style.marginTop = '16px';
+                watermarkDiv.style.fontSize = '12px';
+                watermarkDiv.style.fontWeight = '700';
+                watermarkDiv.style.color = '#94a3b8';
+                watermarkDiv.style.letterSpacing = '0.5px';
+                watermarkDiv.textContent = 'dev by AmA';
+                clonedEl.appendChild(watermarkDiv);
             }
         }
     }).then(canvas => {
@@ -566,6 +598,7 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
         });
         if (activeBtn) {
             activeBtn.innerHTML = oldBtnHtml;
+            activeBtn.disabled = false;
         }
 
         // Trigger unduh gambar PNG
@@ -584,12 +617,13 @@ window.downloadSingleMatrix = function (elementId, matrixName) {
         });
         if (activeBtn) {
             activeBtn.innerHTML = oldBtnHtml;
+            activeBtn.disabled = false;
         }
         alert('Terjadi kesalahan saat memproses gambar.');
     });
 };
 
-// Unduh Gambar Seluruh Komparasi 3 Skenario (Comparison Grid + Selisih)
+// Unduh Gambar Seluruh Komparasi 3 Skenario (Landscape Desktop 3 Kolom Berdampingan di Semua Layar)
 window.downloadComparisonMatrix = function () {
     const targetEl = document.getElementById('comparisonCardsArea');
     if (!targetEl) {
@@ -615,21 +649,69 @@ window.downloadComparisonMatrix = function () {
     let oldBtnHtml = '';
     if (btn) {
         oldBtnHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memproses Komparasi...</span>';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Memproses Gambar Landscape...</span>';
         btn.disabled = true;
     }
 
+    // Dipaksa Layout Landscape Desktop 1180px dengan 3 Kolom Kartu Berdampingan (Meskipun di HP)
     html2canvas(targetEl, {
-        scale: 2.4,
+        scale: 2,
+        windowWidth: 1280,
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
         onclone: function (clonedDoc) {
             const clonedEl = clonedDoc.getElementById('comparisonCardsArea');
             if (clonedEl) {
-                clonedEl.style.padding = '16px';
+                // Set container desktop landscape
+                clonedEl.style.width = '1180px';
+                clonedEl.style.minWidth = '1180px';
+                clonedEl.style.maxWidth = '1180px';
+                clonedEl.style.padding = '24px 28px';
                 clonedEl.style.background = '#ffffff';
                 clonedEl.style.borderRadius = '16px';
+                clonedEl.style.boxShadow = 'none';
+
+                // Paksa grid 3 kolom berdampingan secara horizontal (Landscape)
+                const grid = clonedEl.querySelector('.comparison-grid');
+                if (grid) {
+                    grid.style.display = 'grid';
+                    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                    grid.style.gap = '18px';
+                    grid.style.width = '100%';
+                    grid.style.marginBottom = '22px';
+                }
+
+                // Format setiap kartu agar serasi dan tidak terpotong
+                const cards = clonedEl.querySelectorAll('.comparison-card');
+                cards.forEach(card => {
+                    card.style.width = '100%';
+                    card.style.minWidth = '0';
+                    card.style.boxSizing = 'border-box';
+                    card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+                });
+
+                // Banner selisih penuh
+                const banner = clonedEl.querySelector('#selisihRanVsP54');
+                if (banner) {
+                    banner.style.width = '100%';
+                    banner.style.boxSizing = 'border-box';
+                    banner.style.marginBottom = '0';
+                }
+
+                // Watermark di sisi kanan bawah gambar: dev by AmA
+                const watermarkDiv = clonedDoc.createElement('div');
+                watermarkDiv.style.display = 'flex';
+                watermarkDiv.style.justifyContent = 'flex-end';
+                watermarkDiv.style.alignItems = 'center';
+                watermarkDiv.style.marginTop = '18px';
+                watermarkDiv.style.paddingRight = '4px';
+                watermarkDiv.style.fontSize = '12px';
+                watermarkDiv.style.fontWeight = '700';
+                watermarkDiv.style.color = '#94a3b8';
+                watermarkDiv.style.letterSpacing = '0.5px';
+                watermarkDiv.textContent = 'dev by AmA';
+                clonedEl.appendChild(watermarkDiv);
             }
         }
     }).then(canvas => {
@@ -641,18 +723,18 @@ window.downloadComparisonMatrix = function () {
         const imgData = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         const tglStr = new Date().toISOString().split('T')[0];
-        downloadLink.download = `Komparasi_3_Skenario_${nopolStr}_${tglStr}.png`;
+        downloadLink.download = `Komparasi_3_Skenario_Landscape_${nopolStr}_${tglStr}.png`;
         downloadLink.href = imgData;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
     }).catch(err => {
-        console.error('Gagal mengambil gambar komparasi:', err);
+        console.error('Gagal mengambil gambar komparasi landscape:', err);
         if (btn) {
             btn.innerHTML = oldBtnHtml;
             btn.disabled = false;
         }
-        alert('Terjadi kesalahan saat memproses gambar komparasi.');
+        alert('Terjadi kesalahan saat memproses gambar komparasi landscape.');
     });
 };
 
