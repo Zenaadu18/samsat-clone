@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blokir akses langsung ke file sensitif (.env, .git, dll)
+    RewriteRule "(^|/)\.(?!well-known)" - [F]
+    RewriteRule "\.(env|sql|bak|log|git|md|yml|yaml|json)$" - [F]
+
+    # Redirect seluruh request ke folder public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
