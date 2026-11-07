@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Admin — Pajak.In NTT</title>
+
+    <!-- Favicon & Brand Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/logoapps.png') }}">
+    <link rel="icon" type="image/png" sizes="64x64" href="{{ asset('icons/favicon-64x64.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icons/logoapps.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('icons/logoapps.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
