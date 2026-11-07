@@ -16,7 +16,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Pajak.In">
     <link rel="apple-touch-icon" href="{{ asset('icons/logoapps.png') }}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/logoapps.png') }}">
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
 
     <!-- Google Fonts: Inter & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

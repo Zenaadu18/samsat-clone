@@ -7,11 +7,9 @@
     <meta name="description" content="Portal Layanan BAPENDA NTT - Pusat Layanan Informasi Pajak dan Aset Daerah Provinsi NTT">
     <title>@yield('title', 'Portal Layanan BAPENDA NTT')</title>
     
-    <!-- Favicon & Brand Icons -->
-    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icons/logoapps.png') }}">
-    <link rel="icon" type="image/png" sizes="64x64" href="{{ asset('icons/favicon-64x64.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('icons/logoapps.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('icons/logoapps.png') }}">
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v=2">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
