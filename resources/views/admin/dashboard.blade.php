@@ -142,6 +142,53 @@
                 display: none !important;
             }
         }
+
+        /* Sidebar Minimized Desktop Mode (~76px) */
+        @media (min-width: 768px) {
+            #admin-sidebar.sidebar-minimized {
+                width: 4.75rem !important; /* 76px */
+            }
+            #admin-sidebar.sidebar-minimized .sidebar-text,
+            #admin-sidebar.sidebar-minimized .sidebar-badge,
+            #admin-sidebar.sidebar-minimized .sidebar-group-title {
+                display: none !important;
+            }
+            #admin-sidebar.sidebar-minimized .sidebar-group-header {
+                justify-content: center !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            #admin-sidebar.sidebar-minimized .sidebar-group-dot {
+                margin: 0 auto !important;
+            }
+            #admin-sidebar.sidebar-minimized .nav-item {
+                justify-content: center !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                width: 2.75rem !important;
+                height: 2.75rem !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                border-radius: 0.875rem !important;
+            }
+            #admin-sidebar.sidebar-minimized .nav-item-content {
+                justify-content: center !important;
+                gap: 0 !important;
+            }
+            #admin-sidebar.sidebar-minimized .sidebar-header {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                justify-content: center !important;
+            }
+            #admin-sidebar.sidebar-minimized .sidebar-footer {
+                justify-content: center !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            #admin-sidebar.sidebar-minimized #collapseChevron {
+                transform: rotate(180deg);
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col selection:bg-emerald-500 selection:text-white">
@@ -149,10 +196,19 @@
     <!-- Header Navbar Atas -->
     <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 sm:px-6 py-3 shadow-xs">
         <div class="flex items-center justify-between gap-4">
-            <!-- Mobile Toggle & Brand -->
+            <!-- Mobile Toggle, Desktop Minimize Toggle & Brand -->
             <div class="flex items-center gap-3">
-                <button type="button" onclick="toggleSidebar()" class="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 cursor-pointer">
+                <!-- Mobile Drawer Toggle -->
+                <button type="button" onclick="toggleSidebar()" class="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 cursor-pointer" title="Menu Sidebar">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <!-- Desktop Minimize / Expand Toggle -->
+                <button type="button" onclick="toggleSidebarMinimize()" 
+                        class="hidden md:flex p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors"
+                        title="Perkecil / Perbesar Sidebar (Ctrl+B)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+                    </svg>
                 </button>
                 <div class="flex items-center gap-2">
                     <span class="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">Portal Manajemen <span class="brand-text-gradient">Pajak</span><span class="brand-dot-gold">.</span><span class="brand-text-gradient">In</span> NTT</span>
@@ -164,6 +220,14 @@
 
             <!-- Action Buttons Header -->
             <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Live Real-Time Clock WITA -->
+                <div class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-mono font-bold" title="Waktu Nyata Sistem Aplikasi (Zona WITA - UTC+8)">
+                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="realtimeClockWita">--:--:-- WITA</span>
+                </div>
+
                 <!-- Flush Cache -->
                 <form action="{{ route('admin.clear_cache') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin me-refresh seluruh cache sistem & OPcache?');">
                     @csrf
@@ -257,9 +321,53 @@
                         </button>
                     </div>
 
+                    <!-- Filter Bar Pengguna -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80">
+                        <!-- Search Input -->
+                        <div class="relative lg:col-span-2">
+                            <input type="text" id="userSearchInput" oninput="debounceUserFilter()" placeholder="Cari username atau nama lengkap..."
+                                   class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+
+                        <!-- Filter UPTD -->
+                        <div>
+                            <select id="userUptdFilter" onchange="applyUserFilters()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none cursor-pointer">
+                                <option value="">Semua Asal UPTD</option>
+                                @foreach($listUptd as $uptdOpt)
+                                    <option value="{{ $uptdOpt }}">{{ $uptdOpt }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Filter Status -->
+                        <div>
+                            <select id="userStatusFilter" onchange="applyUserFilters()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none cursor-pointer">
+                                <option value="">Semua Status</option>
+                                <option value="active">Aktif</option>
+                                <option value="blocked">Diblokir</option>
+                            </select>
+                        </div>
+
+                        <!-- Rows Per Page & Reset -->
+                        <div class="flex items-center gap-2">
+                            <select id="userPerPageSelect" onchange="changeUserPerPage(this.value)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none cursor-pointer font-semibold">
+                                <option value="10">10 / Hal</option>
+                                <option value="25">25 / Hal</option>
+                                <option value="50">50 / Hal</option>
+                                <option value="all">Semua Data</option>
+                            </select>
+                            <button type="button" onclick="resetUserFilters()" class="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 transition-colors shrink-0 cursor-pointer" title="Reset Filter">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Tabel Users -->
                     <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
-                        <table class="w-full text-left text-xs text-slate-700 table-to-card">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card" id="tableUsers">
                             <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3">ID</th>
@@ -273,102 +381,32 @@
                                     <th class="px-4 py-3 text-right">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 bg-white">
-                                @forelse($usersList as $u)
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-3 font-mono text-slate-400" data-label="ID">#{{ $u->id }}</td>
-                                        <td class="px-4 py-3 font-mono font-bold text-slate-900" data-label="Username">{{ $u->username }}</td>
-                                        <td class="px-4 py-3 font-semibold text-slate-800" data-label="Nama Lengkap">{{ $u->name }}</td>
-                                        <td class="px-4 py-3" data-label="Asal UPTD">
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ !empty($u->uptd) ? (($u->uptd === 'Kantor Pusat') ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200') : 'bg-slate-100 text-slate-500 border border-dashed border-slate-300' }}">
-                                                <svg class="w-3 h-3 {{ !empty($u->uptd) ? (($u->uptd === 'Kantor Pusat') ? 'text-amber-600' : 'text-blue-600') : 'text-slate-400' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                                <span class="truncate max-w-[130px]" title="{{ $u->uptd ?: 'Belum Diisi' }}">{{ $u->uptd ?: 'Belum Diisi' }}</span>
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3" data-label="Role">
-                                            @if(($u->role ?? 'user') === 'admin')
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                                                    Administrator
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                                    Pengguna Biasa
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3" data-label="Perangkat">
-                                            @if(($u->role ?? 'user') === 'admin' || ($u->role_id ?? 0) == 1)
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="Admin dapat login bersamaan di banyak perangkat tanpa batasan">
-                                                    <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                                    Bebas (Multi-Device)
-                                                </span>
-                                            @elseif(!empty($u->api_token) && !empty($u->device_id))
-                                                <div class="flex items-center gap-1.5" title="Sesi aktif di {{ $u->device_name }} (Terakhir aktif: {{ $u->last_activity_at ? date('d/m/Y H:i', strtotime($u->last_activity_at)) : '-' }})">
-                                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                                        <span class="truncate max-w-[130px]">Aktif: {{ $u->device_name ?: 'Perangkat' }}</span>
-                                                    </span>
-                                                </div>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                                    Tidak Ada Sesi Aktif
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3" data-label="Status">
-                                            @if($u->is_blocked)
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                                                    Diblokir
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                    Aktif
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px]" data-label="Login Terakhir">
-                                            {{ $u->last_login_at ? date('d/m/Y H:i', strtotime($u->last_login_at)) : '-' }}
-                                        </td>
-                                        <td class="px-4 py-3 text-right space-x-1" data-label="Aksi" data-action="true">
-                                            @if((($u->role ?? 'user') !== 'admin' && ($u->role_id ?? 0) != 1) && (!empty($u->api_token) || !empty($u->device_id)))
-                                                <button type="button" 
-                                                        onclick="resetUserDevice({{ $u->id }}, '{{ $u->username }}')"
-                                                        class="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-semibold cursor-pointer"
-                                                        title="Logout / Putuskan Sesi Perangkat Pengguna">
-                                                    Logout Sesi
-                                                </button>
-                                            @endif
-                                            <button type="button" 
-                                                    onclick="editUser({{ json_encode($u) }})"
-                                                    class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold cursor-pointer">
-                                                    Edit
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="toggleBlockUser({{ $u->id }}, {{ $u->is_blocked }})"
-                                                    class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold cursor-pointer {{ $u->is_blocked ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' }}">
-                                                {{ $u->is_blocked ? 'Aktifkan' : 'Blokir' }}
-                                            </button>
-                                            <button type="button" 
-                                                    onclick="deleteUser({{ $u->id }}, '{{ $u->username }}')"
-                                                    class="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold cursor-pointer">
-                                                Hapus
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="px-4 py-8 text-center text-slate-400">
-                                            Belum ada pengguna terdaftar. Klik "Tambah Pengguna Baru" untuk membuat akun.
-                                        </td>
-                                    </tr>
-                                @endforelse
+                            <tbody id="usersTableBody" class="divide-y divide-slate-100 bg-white">
+                                <!-- Konten pengguna dirender secara reaktif melalui JS renderUsersTable() -->
+                                <tr>
+                                    <td colspan="9" class="px-4 py-8 text-center text-slate-400">
+                                        Memuat data pengguna...
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Pagination & Summary Users -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-600">
+                        <div id="usersSummary" class="font-medium text-slate-500">
+                            Menampilkan <span class="font-bold text-slate-800 font-mono" id="usersFrom">0</span> - <span class="font-bold text-slate-800 font-mono" id="usersTo">0</span> dari <span class="font-bold text-slate-800 font-mono" id="usersTotal">0</span> pengguna
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <!-- Tombol Pintas Tampilkan Semua -->
+                            <button type="button" id="btnUserShowAll" onclick="toggleUserShowAll()" 
+                                    class="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer">
+                                Tampilkan Semua
+                            </button>
+                            <!-- Kontrol Halaman -->
+                            <div id="usersPagination" class="flex items-center gap-1"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -386,14 +424,42 @@
                                 </span>
                                 Audit Log Riwayat Aktivitas Pengguna
                             </h2>
-                            <p class="text-xs text-slate-500 mt-1">Pencatatan aktivitas login, cek nomor polisi, simulasi perhitungan, dan balik nama BBN 2.</p>
+                            <p class="text-xs text-slate-500 mt-1">Pencatatan real-time seluruh aktivitas cek nopol, BBN 2, dan simulasi pajak dalam zona waktu WITA.</p>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar Riwayat Aktivitas -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/80">
+                        <!-- Search Input -->
+                        <div class="relative lg:col-span-2">
+                            <input type="text" id="logSearchInput" oninput="debounceLogSearch(event)" placeholder="Cari nopol, user, nama, detail, IP..."
+                                   class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500/30 focus:outline-none">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
                         </div>
 
-                        <!-- Search Filter -->
-                        <div class="relative w-full sm:w-64">
-                            <input type="text" id="logSearchInput" oninput="debounceLogSearch(event)" placeholder="Cari nopol, user, IP..."
-                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 pl-9 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500/30 focus:outline-none">
-                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <!-- Filter Jenis Aktivitas -->
+                        <div>
+                            <select id="logActivityFilter" onchange="handleLogActivityChange(this.value)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer">
+                                <option value="">Semua Jenis Aktivitas</option>
+                                @foreach($distinctActivities ?? [] as $act)
+                                    <option value="{{ $act }}">{{ $act }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Rows Per Page & Reset -->
+                        <div class="flex items-center gap-2">
+                            <select id="logPerPageSelect" onchange="changeLogPerPage(this.value)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer font-semibold">
+                                <option value="15">15 / Hal</option>
+                                <option value="25">25 / Hal</option>
+                                <option value="50">50 / Hal</option>
+                                <option value="all">Semua Data</option>
+                            </select>
+                            <button type="button" onclick="resetLogFilters()" class="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 transition-colors shrink-0 cursor-pointer" title="Reset Filter">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
                         </div>
                     </div>
 
@@ -401,7 +467,7 @@
                         <table class="w-full text-left text-xs text-slate-700 table-to-card" id="tableLogs">
                             <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
-                                    <th class="px-4 py-3">Waktu</th>
+                                    <th class="px-4 py-3">Waktu (WITA)</th>
                                     <th class="px-4 py-3">Username &amp; Nama</th>
                                     <th class="px-4 py-3">Aktivitas</th>
                                     <th class="px-4 py-3">Detail Data</th>
@@ -410,45 +476,31 @@
                                 </tr>
                             </thead>
                             <tbody id="logsTableBody" class="divide-y divide-slate-100 bg-white">
-                                @forelse($recentActivities as $log)
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
-                                            {{ date('d/m/Y H:i:s', strtotime($log->created_at)) }}
-                                        </td>
-                                        <td class="px-4 py-3" data-label="User">
-                                            <span class="font-mono font-bold text-slate-900 block">{{ $log->username }}</span>
-                                            <span class="text-[10px] text-slate-500">{{ $log->user_name ?? '-' }}</span>
-                                        </td>
-                                        <td class="px-4 py-3" data-label="Aktivitas">
-                                            <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                                {{ $log->activity }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="{{ $log->detail }}">
-                                            {{ $log->detail ?? '-' }}
-                                        </td>
-                                        <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
-                                            @if(!empty($log->total_biaya) && $log->total_biaya > 0)
-                                                Rp {{ number_format($log->total_biaya, 0, ',', '.') }}
-                                            @else
-                                                <span class="text-slate-400 font-normal">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
-                                            {{ $log->ip_address ?? '-' }}
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                                            Belum ada aktivitas tercatat.
-                                        </td>
-                                    </tr>
-                                @endforelse
+                                <tr>
+                                    <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                                        Memuat riwayat aktivitas...
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
-                    <div id="logsPagination" class="flex justify-end gap-2 pt-2"></div>
+
+                    <!-- Pagination & Summary Logs -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-600">
+                        <div id="logsSummary" class="font-medium text-slate-500">
+                            Menampilkan <span class="font-bold text-slate-800 font-mono" id="logsFrom">0</span> - <span class="font-bold text-slate-800 font-mono" id="logsTo">0</span> dari <span class="font-bold text-slate-800 font-mono" id="logsTotal">0</span> riwayat
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <!-- Tombol Pintas Tampilkan Semua -->
+                            <button type="button" id="btnLogShowAll" onclick="toggleLogShowAll()" 
+                                    class="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer">
+                                Tampilkan Semua
+                            </button>
+                            <!-- Kontrol Halaman -->
+                            <div id="logsPagination" class="flex items-center gap-1"></div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1403,6 +1455,48 @@
             sidebar.classList.toggle('-translate-x-full');
         }
 
+        // Sidebar Desktop Minimize Toggle
+        function toggleSidebarMinimize() {
+            const sidebar = document.getElementById('admin-sidebar');
+            if (!sidebar) return;
+            sidebar.classList.toggle('sidebar-minimized');
+            const isMinimized = sidebar.classList.contains('sidebar-minimized');
+            try {
+                localStorage.setItem('admin_sidebar_minimized', isMinimized ? 'true' : 'false');
+            } catch(e) {}
+            
+            const btn = document.getElementById('sidebarMinimizeBtn');
+            if (btn) {
+                btn.title = isMinimized ? 'Perluas Sidebar (Ctrl+B)' : 'Perkecil Sidebar (Ctrl+B)';
+            }
+        }
+
+        // Shortcut Keyboard Ctrl+B untuk Minimize Sidebar
+        window.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+                e.preventDefault();
+                toggleSidebarMinimize();
+            }
+        });
+
+        // Real-Time Clock Sistem WITA (UTC+8)
+        function updateRealtimeWitaClock() {
+            const el = document.getElementById('realtimeClockWita');
+            if (!el) return;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', {
+                timeZone: 'Asia/Makassar',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            el.textContent = `${timeStr} WITA`;
+        }
+        setInterval(updateRealtimeWitaClock, 1000);
+        updateRealtimeWitaClock();
+
         // Sidebar Menu Switcher
         function switchSidebarMenu(menuKey) {
             document.querySelectorAll('.admin-section').forEach(s => s.classList.add('hidden'));
@@ -1420,14 +1514,356 @@
                 targetBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-xs');
             }
 
+            // Hook otomatis refresh data saat tab diklik
+            if (menuKey === 'users') {
+                renderUsersTable();
+            } else if (menuKey === 'logs') {
+                fetchLogs();
+            }
+
             // Close mobile sidebar on select
             if (window.innerWidth < 768) {
                 document.getElementById('admin-sidebar').classList.add('-translate-x-full');
             }
         }
 
-        // Set default active menu
+        // =====================================================================
+        // MANAJEMEN PENGGUNA (FILTER, PAGINASI, & TAMPILKAN SEMUA)
+        // =====================================================================
+        const rawUsersData = @json($usersList);
+        let userFilterState = {
+            search: '',
+            uptd: '',
+            status: '',
+            perPage: 10,
+            currentPage: 1,
+            showAll: false
+        };
+
+        let userSearchDebounceTimer = null;
+        function debounceUserFilter() {
+            clearTimeout(userSearchDebounceTimer);
+            userSearchDebounceTimer = setTimeout(() => {
+                const val = document.getElementById('userSearchInput')?.value.trim().toLowerCase() || '';
+                userFilterState.search = val;
+                userFilterState.currentPage = 1;
+                renderUsersTable();
+            }, 250);
+        }
+
+        function applyUserFilters() {
+            userFilterState.uptd = document.getElementById('userUptdFilter')?.value || '';
+            userFilterState.status = document.getElementById('userStatusFilter')?.value || '';
+            userFilterState.currentPage = 1;
+            renderUsersTable();
+        }
+
+        function changeUserPerPage(val) {
+            if (val === 'all') {
+                userFilterState.showAll = true;
+                userFilterState.perPage = 'all';
+            } else {
+                userFilterState.showAll = false;
+                userFilterState.perPage = parseInt(val, 10) || 10;
+            }
+            userFilterState.currentPage = 1;
+            renderUsersTable();
+        }
+
+        function toggleUserShowAll() {
+            userFilterState.showAll = !userFilterState.showAll;
+            const selectEl = document.getElementById('userPerPageSelect');
+            if (userFilterState.showAll) {
+                userFilterState.perPage = 'all';
+                if (selectEl) selectEl.value = 'all';
+            } else {
+                userFilterState.perPage = 10;
+                if (selectEl) selectEl.value = '10';
+            }
+            userFilterState.currentPage = 1;
+            renderUsersTable();
+        }
+
+        function resetUserFilters() {
+            userFilterState = {
+                search: '',
+                uptd: '',
+                status: '',
+                perPage: 10,
+                currentPage: 1,
+                showAll: false
+            };
+            const sInput = document.getElementById('userSearchInput');
+            if (sInput) sInput.value = '';
+            const uFilter = document.getElementById('userUptdFilter');
+            if (uFilter) uFilter.value = '';
+            const stFilter = document.getElementById('userStatusFilter');
+            if (stFilter) stFilter.value = '';
+            const ppSelect = document.getElementById('userPerPageSelect');
+            if (ppSelect) ppSelect.value = '10';
+            renderUsersTable();
+        }
+
+        function goToUserPage(page) {
+            userFilterState.currentPage = page;
+            renderUsersTable();
+        }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            if (!tbody) return;
+
+            // Filter
+            const filtered = rawUsersData.filter(u => {
+                if (userFilterState.search) {
+                    const uname = (u.username || '').toLowerCase();
+                    const name = (u.name || '').toLowerCase();
+                    if (!uname.includes(userFilterState.search) && !name.includes(userFilterState.search)) {
+                        return false;
+                    }
+                }
+                if (userFilterState.uptd) {
+                    if ((u.uptd || '') !== userFilterState.uptd) {
+                        return false;
+                    }
+                }
+                if (userFilterState.status === 'active' && parseInt(u.is_blocked) === 1) {
+                    return false;
+                }
+                if (userFilterState.status === 'blocked' && parseInt(u.is_blocked) !== 1) {
+                    return false;
+                }
+                return true;
+            });
+
+            const total = filtered.length;
+            const isAll = userFilterState.showAll || userFilterState.perPage === 'all';
+            const perPage = isAll ? (total || 1) : userFilterState.perPage;
+            const totalPages = Math.ceil(total / perPage) || 1;
+
+            if (userFilterState.currentPage > totalPages) {
+                userFilterState.currentPage = totalPages;
+            }
+            if (userFilterState.currentPage < 1) {
+                userFilterState.currentPage = 1;
+            }
+
+            const fromIdx = total === 0 ? 0 : (userFilterState.currentPage - 1) * perPage;
+            const toIdx = isAll ? total : Math.min(fromIdx + perPage, total);
+            const pageData = total === 0 ? [] : filtered.slice(fromIdx, toIdx);
+
+            // Summary
+            const fromEl = document.getElementById('usersFrom');
+            const toEl = document.getElementById('usersTo');
+            const totalEl = document.getElementById('usersTotal');
+            if (fromEl) fromEl.textContent = total === 0 ? 0 : fromIdx + 1;
+            if (toEl) toEl.textContent = toIdx;
+            if (totalEl) totalEl.textContent = total;
+
+            // Show All Button text & style
+            const btnShowAll = document.getElementById('btnUserShowAll');
+            if (btnShowAll) {
+                if (isAll) {
+                    btnShowAll.textContent = 'Mode Paginasi';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 text-xs font-bold shadow-2xs transition-all cursor-pointer';
+                } else {
+                    btnShowAll.textContent = 'Tampilkan Semua';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer';
+                }
+            }
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                <span>Tidak ada pengguna yang cocok dengan kriteria filter.</span>
+                                <button type="button" onclick="resetUserFilters()" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold underline cursor-pointer mt-1">Reset Filter</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = pageData.map(u => {
+                    const isBlocked = parseInt(u.is_blocked) === 1;
+                    const isAdmin = (u.role === 'admin' || parseInt(u.role_id) === 1);
+                    const hasActiveSession = (!isAdmin && (u.api_token || u.device_id));
+
+                    // UPTD Badge
+                    let uptdBadge = '';
+                    if (u.uptd) {
+                        const isPusat = u.uptd === 'Kantor Pusat';
+                        uptdBadge = `
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isPusat ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200'}">
+                                <svg class="w-3 h-3 ${isPusat ? 'text-amber-600' : 'text-blue-600'} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <span class="truncate max-w-[130px]" title="${u.uptd}">${u.uptd}</span>
+                            </span>
+                        `;
+                    } else {
+                        uptdBadge = `
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-dashed border-slate-300">
+                                <span class="truncate max-w-[130px]">Belum Diisi</span>
+                            </span>
+                        `;
+                    }
+
+                    // Role Badge
+                    const roleBadge = isAdmin ? `
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                            Administrator
+                        </span>
+                    ` : `
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            Pengguna Biasa
+                        </span>
+                    `;
+
+                    // Device Badge
+                    let devBadge = '';
+                    if (isAdmin) {
+                        devBadge = `
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="Admin dapat login bersamaan di banyak perangkat tanpa batasan">
+                                <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                Bebas (Multi-Device)
+                            </span>
+                        `;
+                    } else if (hasActiveSession) {
+                        devBadge = `
+                            <div class="flex items-center gap-1.5" title="Sesi aktif di ${u.device_name || 'Perangkat'}">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span class="truncate max-w-[130px]">Aktif: ${u.device_name || 'Perangkat'}</span>
+                                </span>
+                            </div>
+                        `;
+                    } else {
+                        devBadge = `
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                Tidak Ada Sesi Aktif
+                            </span>
+                        `;
+                    }
+
+                    // Status Badge
+                    const statusBadge = isBlocked ? `
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                            Diblokir
+                        </span>
+                    ` : `
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Aktif
+                        </span>
+                    `;
+
+                    // Format Last Login (WITA)
+                    let lastLogin = '-';
+                    if (u.last_login_at) {
+                        try {
+                            const d = new Date(u.last_login_at);
+                            lastLogin = d.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+                                        d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WITA';
+                        } catch(e) {
+                            lastLogin = u.last_login_at;
+                        }
+                    }
+
+                    const jsonUserStr = JSON.stringify(u).replace(/"/g, '&quot;');
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-4 py-3 font-mono text-slate-400" data-label="ID">#${u.id}</td>
+                            <td class="px-4 py-3 font-mono font-bold text-slate-900" data-label="Username">${u.username}</td>
+                            <td class="px-4 py-3 font-semibold text-slate-800" data-label="Nama Lengkap">${u.name || '-'}</td>
+                            <td class="px-4 py-3" data-label="Asal UPTD">${uptdBadge}</td>
+                            <td class="px-4 py-3" data-label="Role">${roleBadge}</td>
+                            <td class="px-4 py-3" data-label="Perangkat">${devBadge}</td>
+                            <td class="px-4 py-3" data-label="Status">${statusBadge}</td>
+                            <td class="px-4 py-3 text-slate-500 font-mono text-[11px]" data-label="Login Terakhir">${lastLogin}</td>
+                            <td class="px-4 py-3 text-right space-x-1" data-label="Aksi" data-action="true">
+                                ${hasActiveSession ? `
+                                    <button type="button" onclick="resetUserDevice(${u.id}, '${u.username}')"
+                                            class="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-semibold cursor-pointer"
+                                            title="Logout / Putuskan Sesi Perangkat Pengguna">
+                                        Logout Sesi
+                                    </button>
+                                ` : ''}
+                                <button type="button" onclick="editUser(${jsonUserStr})"
+                                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold cursor-pointer">
+                                    Edit
+                                </button>
+                                <button type="button" onclick="toggleBlockUser(${u.id}, ${isBlocked ? 1 : 0})"
+                                        class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold cursor-pointer ${isBlocked ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}">
+                                    ${isBlocked ? 'Aktifkan' : 'Blokir'}
+                                </button>
+                                <button type="button" onclick="deleteUser(${u.id}, '${u.username}')"
+                                        class="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold cursor-pointer">
+                                    Hapus
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            renderUsersPagination(totalPages, userFilterState.currentPage, isAll);
+        }
+
+        function renderUsersPagination(totalPages, currentPage, isAll) {
+            const container = document.getElementById('usersPagination');
+            if (!container) return;
+
+            if (isAll || totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            // Prev Button
+            html += `
+                <button type="button" onclick="goToUserPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    &laquo; Prev
+                </button>
+            `;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages > 7) {
+                    if (i !== 1 && i !== totalPages && Math.abs(i - currentPage) > 2) {
+                        if (i === 2 || i === totalPages - 1) {
+                            html += `<span class="px-1 text-slate-400">...</span>`;
+                        }
+                        continue;
+                    }
+                }
+                const isActive = i === currentPage;
+                html += `
+                    <button type="button" onclick="goToUserPage(${i})"
+                            class="px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${isActive ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // Next Button
+            html += `
+                <button type="button" onclick="goToUserPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    Next &raquo;
+                </button>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Set default active menu & inisialisasi tabel
         switchSidebarMenu('users');
+        fetchLogs();
 
         // Toggle Switch Label Updater
         function updateToggleLabel(checkbox) {
@@ -1796,57 +2232,232 @@
             .catch(() => alert('Terjadi kendala jaringan.'));
         }
 
-        // Audit Logs Search & Pagination
+        // =====================================================================
+        // RIWAYAT AKTIVITAS (AUDIT LOGS) AJAX FILTER, PAGINASI & TAMPILKAN SEMUA
+        // =====================================================================
+        let logFilterState = {
+            search: '',
+            activity: '',
+            perPage: 15,
+            currentPage: 1,
+            showAll: false
+        };
+
         let logSearchTimer = null;
         function debounceLogSearch(e) {
             clearTimeout(logSearchTimer);
             logSearchTimer = setTimeout(() => {
-                fetchLogs(e.target.value.trim());
+                logFilterState.search = e.target.value.trim();
+                logFilterState.currentPage = 1;
+                fetchLogs();
             }, 300);
         }
 
-        function fetchLogs(q = '', page = 1) {
-            fetch(`{{ route("admin.activity_logs") }}?q=${encodeURIComponent(q)}&page=${page}`)
+        function handleLogActivityChange(val) {
+            logFilterState.activity = val;
+            logFilterState.currentPage = 1;
+            fetchLogs();
+        }
+
+        function changeLogPerPage(val) {
+            if (val === 'all') {
+                logFilterState.showAll = true;
+                logFilterState.perPage = 'all';
+            } else {
+                logFilterState.showAll = false;
+                logFilterState.perPage = parseInt(val, 10) || 15;
+            }
+            logFilterState.currentPage = 1;
+            fetchLogs();
+        }
+
+        function toggleLogShowAll() {
+            logFilterState.showAll = !logFilterState.showAll;
+            const selectEl = document.getElementById('logPerPageSelect');
+            if (logFilterState.showAll) {
+                logFilterState.perPage = 'all';
+                if (selectEl) selectEl.value = 'all';
+            } else {
+                logFilterState.perPage = 15;
+                if (selectEl) selectEl.value = '15';
+            }
+            logFilterState.currentPage = 1;
+            fetchLogs();
+        }
+
+        function resetLogFilters() {
+            logFilterState = {
+                search: '',
+                activity: '',
+                perPage: 15,
+                currentPage: 1,
+                showAll: false
+            };
+            const sInput = document.getElementById('logSearchInput');
+            if (sInput) sInput.value = '';
+            const aFilter = document.getElementById('logActivityFilter');
+            if (aFilter) aFilter.value = '';
+            const ppSelect = document.getElementById('logPerPageSelect');
+            if (ppSelect) ppSelect.value = '15';
+            fetchLogs();
+        }
+
+        function goToLogPage(page) {
+            logFilterState.currentPage = page;
+            fetchLogs();
+        }
+
+        function fetchLogs() {
+            const tbody = document.getElementById('logsTableBody');
+            if (!tbody) return;
+
+            const params = new URLSearchParams();
+            if (logFilterState.search) params.append('q', logFilterState.search);
+            if (logFilterState.activity) params.append('activity', logFilterState.activity);
+            if (logFilterState.showAll) {
+                params.append('show_all', '1');
+            } else {
+                params.append('per_page', logFilterState.perPage);
+                params.append('page', logFilterState.currentPage);
+            }
+
+            fetch(`{{ route("admin.activity_logs") }}?${params.toString()}`)
                 .then(r => r.json())
                 .then(res => {
                     if (res.status === 'success') {
-                        renderLogs(res.data.data);
+                        renderLogs(res.data);
                     }
+                })
+                .catch(() => {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-rose-500">Gagal memuat riwayat aktivitas. Silakan coba kembali.</td></tr>';
                 });
         }
 
-        function renderLogs(logs) {
+        function renderLogs(logData) {
             const tbody = document.getElementById('logsTableBody');
+            const logs = logData.data || [];
+            const total = logData.total !== undefined ? logData.total : logs.length;
+            const from = logData.from !== undefined ? (logData.from || (logs.length > 0 ? 1 : 0)) : (logs.length > 0 ? 1 : 0);
+            const to = logData.to !== undefined ? logData.to : logs.length;
+            const lastPage = logData.last_page || 1;
+            const currentPage = logData.current_page || 1;
+            const isAll = logFilterState.showAll || logFilterState.perPage === 'all';
+
+            // Summary
+            const fromEl = document.getElementById('logsFrom');
+            const toEl = document.getElementById('logsTo');
+            const totalEl = document.getElementById('logsTotal');
+            if (fromEl) fromEl.textContent = from;
+            if (toEl) toEl.textContent = to;
+            if (totalEl) totalEl.textContent = total;
+
+            // Show All Button text & style
+            const btnShowAll = document.getElementById('btnLogShowAll');
+            if (btnShowAll) {
+                if (isAll) {
+                    btnShowAll.textContent = 'Mode Paginasi';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-xs font-bold shadow-2xs transition-all cursor-pointer';
+                } else {
+                    btnShowAll.textContent = 'Tampilkan Semua';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer';
+                }
+            }
+
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Tidak ada riwayat aktivitas ditemukan.</td></tr>';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Tidak ada riwayat aktivitas ditemukan sesuai filter.</span>
+                                <button type="button" onclick="resetLogFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer mt-1">Reset Filter</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = logs.map(l => {
+                    const timeFormatted = l.created_at_formatted || (new Date(l.created_at).toLocaleString('id-ID') + ' WITA');
+                    const totalBiayaFormatted = (l.total_biaya && Number(l.total_biaya) > 0)
+                        ? 'Rp ' + Number(l.total_biaya).toLocaleString('id-ID')
+                        : '<span class="text-slate-400 font-normal">-</span>';
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
+                                ${timeFormatted}
+                            </td>
+                            <td class="px-4 py-3" data-label="User">
+                                <span class="font-mono font-bold text-slate-900 block">${l.username}</span>
+                                <span class="text-[10px] text-slate-500">${l.user_name || '-'}</span>
+                            </td>
+                            <td class="px-4 py-3" data-label="Aktivitas">
+                                <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                    ${l.activity}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="${l.detail || ''}">
+                                ${l.detail || '-'}
+                            </td>
+                            <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
+                                ${totalBiayaFormatted}
+                            </td>
+                            <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
+                                ${l.ip_address || '-'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            renderLogsPagination(lastPage, currentPage, isAll);
+        }
+
+        function renderLogsPagination(lastPage, currentPage, isAll) {
+            const container = document.getElementById('logsPagination');
+            if (!container) return;
+
+            if (isAll || lastPage <= 1) {
+                container.innerHTML = '';
                 return;
             }
 
-            tbody.innerHTML = logs.map(l => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
-                        ${new Date(l.created_at).toLocaleString('id-ID')}
-                    </td>
-                    <td class="px-4 py-3" data-label="User">
-                        <span class="font-mono font-bold text-slate-900 block">${l.username}</span>
-                        <span class="text-[10px] text-slate-500">${l.user_name || '-'}</span>
-                    </td>
-                    <td class="px-4 py-3" data-label="Aktivitas">
-                        <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                            ${l.activity}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="${l.detail || ''}">
-                        ${l.detail || '-'}
-                    </td>
-                    <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
-                        ${l.total_biaya && Number(l.total_biaya) > 0 ? 'Rp ' + Number(l.total_biaya).toLocaleString('id-ID') : '<span class="text-slate-400 font-normal">-</span>'}
-                    </td>
-                    <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
-                        ${l.ip_address || '-'}
-                    </td>
-                </tr>
-            `).join('');
+            let html = '';
+            // Prev Button
+            html += `
+                <button type="button" onclick="goToLogPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    &laquo; Prev
+                </button>
+            `;
+
+            for (let i = 1; i <= lastPage; i++) {
+                if (lastPage > 7) {
+                    if (i !== 1 && i !== lastPage && Math.abs(i - currentPage) > 2) {
+                        if (i === 2 || i === lastPage - 1) {
+                            html += `<span class="px-1 text-slate-400">...</span>`;
+                        }
+                        continue;
+                    }
+                }
+                const isActive = i === currentPage;
+                html += `
+                    <button type="button" onclick="goToLogPage(${i})"
+                            class="px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // Next Button
+            html += `
+                <button type="button" onclick="goToLogPage(${currentPage + 1})" ${currentPage >= lastPage ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    Next &raquo;
+                </button>
+            `;
+
+            container.innerHTML = html;
         }
 
         // NJKB Search & Modal

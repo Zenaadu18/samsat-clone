@@ -98,6 +98,14 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
+        // Kategori Aktivitas Unik untuk Filter Dropdown
+        $distinctActivities = DB::table('activity_logs')
+            ->whereNotIn('activity', ['Login Aplikasi', 'Logout Aplikasi', 'Login', 'Logout'])
+            ->distinct()
+            ->pluck('activity')
+            ->filter()
+            ->values();
+
         // Ambil Konfigurasi Banner
         $banner = [
             'active'  => DB::table('konfigurasi')->where('kunci', 'banner_active')->value('nilai') ?? '0',
@@ -115,7 +123,8 @@ class AdminController extends Controller
             'pesanError'       => session('pesanError', ''),
             'usersList'        => $usersList,
             'listUptd'         => User::LIST_UPTD,
-            'recentActivities' => $recentActivities,
+            'recentActivities'   => $recentActivities,
+            'distinctActivities' => $distinctActivities,
             'bannersList'      => $bannersList,
             'banner'           => $banner,
             'grupAmnesti'      => $grupAmnesti,
@@ -729,10 +738,17 @@ class AdminController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $q = trim((string)$request->query('q', ''));
+        $q        = trim((string)$request->query('q', ''));
+        $activity = trim((string)$request->query('activity', ''));
+        $showAll  = $request->boolean('show_all') || $request->query('per_page') === 'all';
+
         $query = DB::table('activity_logs')
             ->whereNotIn('activity', ['Login Aplikasi', 'Logout Aplikasi', 'Login', 'Logout'])
             ->orderBy('id', 'desc');
+
+        if ($activity && $activity !== 'all') {
+            $query->where('activity', $activity);
+        }
 
         if ($q) {
             $query->where(function ($w) use ($q) {
@@ -744,7 +760,37 @@ class AdminController extends Controller
             });
         }
 
-        $logs = $query->paginate(15);
+        if ($showAll) {
+            $allLogs = $query->limit(2000)->get();
+            $total   = $allLogs->count();
+            
+            // Format waktu WITA untuk konsistensi
+            $transformed = $allLogs->map(function ($item) {
+                $item->created_at_formatted = date('d/m/Y H:i:s', strtotime($item->created_at)) . ' WITA';
+                return $item;
+            });
+
+            $logs = [
+                'data'         => $transformed,
+                'current_page' => 1,
+                'last_page'    => 1,
+                'per_page'     => $total,
+                'total'        => $total,
+                'from'         => $total > 0 ? 1 : 0,
+                'to'           => $total,
+            ];
+        } else {
+            $perPage = min(max((int)$request->query('per_page', 15), 5), 100);
+            $paginator = $query->paginate($perPage);
+
+            // Format waktu WITA untuk setiap item
+            $paginator->getCollection()->transform(function ($item) {
+                $item->created_at_formatted = date('d/m/Y H:i:s', strtotime($item->created_at)) . ' WITA';
+                return $item;
+            });
+
+            $logs = $paginator;
+        }
 
         return response()->json([
             'status' => 'success',
