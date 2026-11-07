@@ -235,23 +235,39 @@ _Simulasi via Pajak.In NTT_`;
           </div>
         </div>
 
-        {/* Mode Selector Pill */}
-        <div className="flex bg-slate-100 p-1 rounded-xl max-w-xs text-xs font-bold">
+        {/* Mode Selector Segmented Pill Control */}
+        <div className="relative grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-full sm:max-w-xs text-xs font-bold shadow-inner">
+          {/* Hardware-accelerated sliding active pill highlight */}
+          <div
+            className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-xs border border-slate-200/90 transition-transform duration-200 ease-out pointer-events-none ${
+              mode === 'manual' ? 'translate-x-full' : 'translate-x-0'
+            }`}
+          />
+
           <button
             type="button"
             onClick={() => setMode('nopol')}
-            className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${mode === 'nopol' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+            className={`relative z-10 py-2.5 px-3 rounded-xl transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+              mode === 'nopol'
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-800 font-semibold'
+            }`}
           >
-            Berdasarkan Nopol
+            <IconLicense size={15} stroke={2.2} className={`transition-colors shrink-0 ${mode === 'nopol' ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span>Berdasarkan Nopol</span>
           </button>
+
           <button
             type="button"
             onClick={() => setMode('manual')}
-            className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${mode === 'manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-              }`}
+            className={`relative z-10 py-2.5 px-3 rounded-xl transition-colors duration-200 flex items-center justify-center gap-1.5 cursor-pointer ${
+              mode === 'manual'
+                ? 'text-emerald-700 font-extrabold'
+                : 'text-slate-500 hover:text-slate-800 font-semibold'
+            }`}
           >
-            Input Manual
+            <IconSparkles size={15} stroke={2.2} className={`transition-colors shrink-0 ${mode === 'manual' ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span>Input Manual</span>
           </button>
         </div>
 
