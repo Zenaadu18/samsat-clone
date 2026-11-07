@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dashboard Admin — Pajak.In NTT</title>
 
     <!-- Favicon -->
@@ -43,6 +43,104 @@
             color: #f59e0b !important;
             -webkit-text-fill-color: #f59e0b !important;
             display: inline-block;
+        }
+
+        /* Anti Auto-Zoom pada Browser Mobile / iOS saat mengetik di input/select/textarea */
+        @media screen and (max-width: 768px) {
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+
+        /* Konversi Tabel ke Card Responsif di Layar Mobile (< 768px) */
+        @media screen and (max-width: 768px) {
+            .table-to-card-container {
+                overflow-x: visible !important;
+                border: none !important;
+                background: transparent !important;
+                border-radius: 0 !important;
+            }
+            .table-to-card {
+                display: block !important;
+                width: 100% !important;
+                border: none !important;
+            }
+            .table-to-card thead {
+                display: none !important;
+            }
+            .table-to-card tbody {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.875rem !important;
+                background: transparent !important;
+            }
+            .table-to-card tbody tr {
+                display: block !important;
+                background-color: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 1.25rem !important;
+                padding: 1rem !important;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+            }
+            .table-to-card tbody tr:hover {
+                background-color: #ffffff !important;
+            }
+            .table-to-card tbody td {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                padding: 0.45rem 0 !important;
+                border-bottom: 1px dashed #f1f5f9 !important;
+                text-align: right !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .table-to-card tbody td:last-child {
+                border-bottom: none !important;
+                padding-bottom: 0 !important;
+                padding-top: 0.65rem !important;
+                justify-content: flex-end !important;
+                gap: 0.5rem !important;
+            }
+            .table-to-card tbody td::before {
+                content: attr(data-label);
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.03em !important;
+                color: #64748b !important;
+                text-align: left !important;
+                margin-right: 0.75rem !important;
+                flex-shrink: 0 !important;
+            }
+            /* Stacked cells (misal pesan panjang, preview flyer, dll) */
+            .table-to-card tbody td[data-stacked="true"] {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                text-align: left !important;
+            }
+            .table-to-card tbody td[data-stacked="true"]::before {
+                margin-bottom: 0.25rem !important;
+            }
+            .table-to-card tbody td[data-stacked="true"] > * {
+                width: 100% !important;
+                text-align: left !important;
+            }
+            /* Aksi / Action buttons */
+            .table-to-card tbody td[data-action="true"] {
+                flex-wrap: wrap !important;
+                justify-content: flex-end !important;
+            }
+            /* Empty state cell */
+            .table-to-card tbody td[colspan] {
+                display: block !important;
+                text-align: center !important;
+                border-bottom: none !important;
+                padding: 1.5rem 0.5rem !important;
+            }
+            .table-to-card tbody td[colspan]::before {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -160,8 +258,8 @@
                     </div>
 
                     <!-- Tabel Users -->
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                        <table class="w-full text-left text-xs text-slate-700">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card">
                             <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3">ID</th>
@@ -177,10 +275,10 @@
                             <tbody class="divide-y divide-slate-100 bg-white">
                                 @forelse($usersList as $u)
                                     <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-3 font-mono text-slate-400">#{{ $u->id }}</td>
-                                        <td class="px-4 py-3 font-mono font-bold text-slate-900">{{ $u->username }}</td>
-                                        <td class="px-4 py-3 font-semibold text-slate-800">{{ $u->name }}</td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3 font-mono text-slate-400" data-label="ID">#{{ $u->id }}</td>
+                                        <td class="px-4 py-3 font-mono font-bold text-slate-900" data-label="Username">{{ $u->username }}</td>
+                                        <td class="px-4 py-3 font-semibold text-slate-800" data-label="Nama Lengkap">{{ $u->name }}</td>
+                                        <td class="px-4 py-3" data-label="Role">
                                             @if(($u->role ?? 'user') === 'admin')
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
@@ -193,7 +291,7 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Perangkat">
                                             @if(($u->role ?? 'user') === 'admin' || ($u->role_id ?? 0) == 1)
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="Admin dapat login bersamaan di banyak perangkat tanpa batasan">
                                                     <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -213,7 +311,7 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Status">
                                             @if($u->is_blocked)
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
@@ -226,10 +324,10 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px]">
+                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px]" data-label="Login Terakhir">
                                             {{ $u->last_login_at ? date('d/m/Y H:i', strtotime($u->last_login_at)) : '-' }}
                                         </td>
-                                        <td class="px-4 py-3 text-right space-x-1">
+                                        <td class="px-4 py-3 text-right space-x-1" data-label="Aksi" data-action="true">
                                             @if((($u->role ?? 'user') !== 'admin' && ($u->role_id ?? 0) != 1) && (!empty($u->api_token) || !empty($u->device_id)))
                                                 <button type="button" 
                                                         onclick="resetUserDevice({{ $u->id }}, '{{ $u->username }}')"
@@ -241,7 +339,7 @@
                                             <button type="button" 
                                                     onclick="editUser({{ json_encode($u) }})"
                                                     class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold cursor-pointer">
-                                                Edit
+                                                    Edit
                                             </button>
                                             <button type="button" 
                                                     onclick="toggleBlockUser({{ $u->id }}, {{ $u->is_blocked }})"
@@ -292,8 +390,8 @@
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                        <table class="w-full text-left text-xs text-slate-700" id="tableLogs">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card" id="tableLogs">
                             <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3">Waktu</th>
@@ -307,29 +405,29 @@
                             <tbody id="logsTableBody" class="divide-y divide-slate-100 bg-white">
                                 @forelse($recentActivities as $log)
                                     <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                                        <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
                                             {{ date('d/m/Y H:i:s', strtotime($log->created_at)) }}
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="User">
                                             <span class="font-mono font-bold text-slate-900 block">{{ $log->username }}</span>
                                             <span class="text-[10px] text-slate-500">{{ $log->user_name ?? '-' }}</span>
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Aktivitas">
                                             <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                                 {{ $log->activity }}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" title="{{ $log->detail }}">
+                                        <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="{{ $log->detail }}">
                                             {{ $log->detail ?? '-' }}
                                         </td>
-                                        <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap">
+                                        <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
                                             @if(!empty($log->total_biaya) && $log->total_biaya > 0)
                                                 Rp {{ number_format($log->total_biaya, 0, ',', '.') }}
                                             @else
                                                 <span class="text-slate-400 font-normal">-</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3 font-mono text-slate-500 text-[11px]">
+                                        <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
                                             {{ $log->ip_address ?? '-' }}
                                         </td>
                                     </tr>
@@ -379,8 +477,8 @@
                     </div>
 
                     <!-- Daftar Banner (Tabel) -->
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                        <table class="w-full text-left text-xs text-slate-700">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card">
                             <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3 text-center w-16">Urutan</th>
@@ -396,14 +494,14 @@
                                 @forelse($bannersList as $b)
                                     <tr class="hover:bg-slate-50 transition-colors">
                                         <!-- Urutan Slide -->
-                                        <td class="px-4 py-3 text-center font-mono font-bold text-slate-700">
+                                        <td class="px-4 py-3 text-center font-mono font-bold text-slate-700" data-label="Urutan">
                                             <span class="inline-block px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px]">
                                                 #{{ $b->order_num }}
                                             </span>
                                         </td>
 
                                         <!-- Preview Thumbnail Gambar -->
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Preview">
                                             @if($b->image_path)
                                                 <a href="{{ asset(ltrim($b->image_path, '/')) }}" target="_blank" class="block w-20 h-14 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group relative">
                                                     <img src="{{ asset(ltrim($b->image_path, '/')) }}" alt="Banner" class="w-full h-full object-cover group-hover:scale-105 transition-transform">
@@ -416,7 +514,7 @@
                                         </td>
 
                                         <!-- Judul & Tipe Badge -->
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Judul & Tipe">
                                             <div class="space-y-1">
                                                 <span class="font-bold text-slate-900 block text-xs">
                                                     {{ $b->title ?: '(Tanpa Judul)' }}
@@ -438,14 +536,14 @@
                                         </td>
 
                                         <!-- Isi Pesan -->
-                                        <td class="px-4 py-3 max-w-xs">
-                                            <p class="text-slate-600 line-clamp-2 leading-relaxed" title="{{ $b->content }}">
-                                                {{ $b->content ?: '-' }}
-                                            </p>
+                                        <td class="px-4 py-3 max-w-xs" data-label="Isi Pesan" data-stacked="true">
+                                            <div class="text-slate-600 line-clamp-3 leading-relaxed text-xs" title="{{ strip_tags($b->content) }}">
+                                                {!! nl2br(e($b->content ?: '-')) !!}
+                                            </div>
                                         </td>
 
                                         <!-- Tautan Luar -->
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3" data-label="Tautan">
                                             @if($b->link_url)
                                                 <a href="{{ $b->link_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 underline truncate block max-w-[140px] text-[11px]">
                                                     {{ $b->link_url }}
@@ -456,7 +554,7 @@
                                         </td>
 
                                         <!-- Status Tayang Toggle -->
-                                        <td class="px-4 py-3 text-center">
+                                        <td class="px-4 py-3 text-center" data-label="Status">
                                             <button type="button" 
                                                     onclick="toggleBannerStatus({{ $b->id }})"
                                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all {{ $b->is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200' }}">
@@ -466,7 +564,7 @@
                                         </td>
 
                                         <!-- Aksi -->
-                                        <td class="px-4 py-3 text-right space-x-1.5 whitespace-nowrap">
+                                        <td class="px-4 py-3 text-right space-x-1.5 whitespace-nowrap" data-label="Aksi" data-action="true">
                                             <button type="button" 
                                                     onclick="editBannerItem({{ json_encode($b) }})"
                                                     class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[11px] font-semibold cursor-pointer">
@@ -568,8 +666,8 @@
                                 Simpan Tarif PKB
                             </button>
                         </div>
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                            <table class="w-full text-left text-xs text-slate-700">
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                            <table class="w-full text-left text-xs text-slate-700 table-to-card">
                                 <thead class="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                                     <tr>
                                         <th class="px-4 py-3">Kode Guna</th>
@@ -581,16 +679,16 @@
                                 <tbody class="divide-y divide-slate-100 bg-white font-mono">
                                     @foreach($dataPkb as $pkb)
                                         <tr class="hover:bg-slate-50">
-                                            <td class="px-4 py-2.5 font-bold text-slate-900">{{ $pkb->k_guna }}</td>
-                                            <td class="px-4 py-2.5">
+                                            <td class="px-4 py-2.5 font-bold text-slate-900" data-label="Kode Guna">{{ $pkb->k_guna }}</td>
+                                            <td class="px-4 py-2.5" data-label="Tarif Lama">
                                                 <input type="text" name="tarif_pkb[{{ $pkb->k_guna }}][lama]" value="{{ $pkb->tarif_lama }}" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                                                 <span class="text-slate-400">({{ (float)$pkb->tarif_lama * 100 }}%)</span>
                                             </td>
-                                            <td class="px-4 py-2.5">
+                                            <td class="px-4 py-2.5" data-label="Tarif Baru">
                                                 <input type="text" name="tarif_pkb[{{ $pkb->k_guna }}][baru]" value="{{ $pkb->tarif_baru }}" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-emerald-700">
                                                 <span class="text-emerald-700 font-bold">({{ (float)$pkb->tarif_baru * 100 }}%)</span>
                                             </td>
-                                            <td class="px-4 py-2.5 font-sans text-slate-600">
+                                            <td class="px-4 py-2.5 font-sans text-slate-600" data-label="Keterangan">
                                                 <input type="text" name="tarif_pkb[{{ $pkb->k_guna }}][keterangan]" value="{{ $pkb->keterangan }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                                             </td>
                                         </tr>
@@ -609,8 +707,8 @@
                                 Simpan Tarif STNK
                             </button>
                         </div>
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                            <table class="w-full text-left text-xs text-slate-700">
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                            <table class="w-full text-left text-xs text-slate-700 table-to-card">
                                 <thead class="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                                     <tr>
                                         <th class="px-4 py-3">Golongan Kendaraan</th>
@@ -622,14 +720,14 @@
                                 <tbody class="divide-y divide-slate-100 bg-white font-mono">
                                     @foreach($dataStnk as $stnk)
                                         <tr class="hover:bg-slate-50">
-                                            <td class="px-4 py-2.5 font-bold text-slate-900">{{ $stnk->jenis }}</td>
-                                            <td class="px-4 py-2.5">
+                                            <td class="px-4 py-2.5 font-bold text-slate-900" data-label="Golongan">{{ $stnk->jenis }}</td>
+                                            <td class="px-4 py-2.5" data-label="Biaya STNK">
                                                 <input type="number" name="tarif_stnk[{{ $stnk->jenis }}][stnk]" value="{{ $stnk->biaya_stnk }}" class="w-32 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                                             </td>
-                                            <td class="px-4 py-2.5">
+                                            <td class="px-4 py-2.5" data-label="Biaya TNKB">
                                                 <input type="number" name="tarif_stnk[{{ $stnk->jenis }}][tnkb]" value="{{ $stnk->biaya_tnkb }}" class="w-32 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                                             </td>
-                                            <td class="px-4 py-2.5 font-sans text-slate-600">
+                                            <td class="px-4 py-2.5 font-sans text-slate-600" data-label="Keterangan">
                                                 <input type="text" name="tarif_stnk[{{ $stnk->jenis }}][keterangan]" value="{{ $stnk->keterangan }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                                             </td>
                                         </tr>
@@ -682,8 +780,8 @@
                             </button>
                         </div>
 
-                        <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                            <table class="w-full text-left text-xs text-slate-700">
+                        <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                            <table class="w-full text-left text-xs text-slate-700 table-to-card">
                                 <thead class="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                                     <tr>
                                         <th class="px-4 py-3">Golongan</th>
@@ -699,14 +797,14 @@
                                 <tbody class="divide-y divide-slate-100 bg-white font-mono">
                                     @foreach($dataSwdkllj as $sw)
                                         <tr class="hover:bg-slate-50">
-                                            <td class="px-4 py-2.5 font-bold text-slate-900">{{ $sw->golongan }}</td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][tarif]" value="{{ $sw->tarif }}" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][admin]" value="{{ $sw->admin }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t1]" value="{{ $sw->denda_t1 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t2]" value="{{ $sw->denda_t2 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t3]" value="{{ $sw->denda_t3 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t4]" value="{{ $sw->denda_t4 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
-                                            <td class="px-4 py-2.5 font-sans text-slate-600"><input type="text" name="tarif_swdkllj[{{ $sw->golongan }}][keterangan]" value="{{ $sw->keterangan }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5 font-bold text-slate-900" data-label="Golongan">{{ $sw->golongan }}</td>
+                                            <td class="px-4 py-2.5" data-label="Pokok"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][tarif]" value="{{ $sw->tarif }}" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5" data-label="Admin"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][admin]" value="{{ $sw->admin }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5" data-label="Denda T1"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t1]" value="{{ $sw->denda_t1 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5" data-label="Denda T2"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t2]" value="{{ $sw->denda_t2 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5" data-label="Denda T3"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t3]" value="{{ $sw->denda_t3 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5" data-label="Denda T4"><input type="number" name="tarif_swdkllj[{{ $sw->golongan }}][t4]" value="{{ $sw->denda_t4 }}" class="w-20 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
+                                            <td class="px-4 py-2.5 font-sans text-slate-600" data-label="Keterangan"><input type="text" name="tarif_swdkllj[{{ $sw->golongan }}][keterangan]" value="{{ $sw->keterangan }}" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs"></td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -799,8 +897,8 @@
                     </form>
 
                     <!-- Daftar Klasifikasi -->
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200 max-h-96 custom-scrollbar">
-                        <table class="w-full text-left text-xs text-slate-700">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 max-h-96 custom-scrollbar table-to-card-container">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card">
                             <thead class="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200 sticky top-0">
                                 <tr>
                                     <th class="px-4 py-3">Keyword Tipe</th>
@@ -812,10 +910,10 @@
                             <tbody class="divide-y divide-slate-100 bg-white font-mono">
                                 @foreach($dataKlasifikasi as $klas)
                                     <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-2 font-bold text-slate-900">{{ $klas->keyword }}</td>
-                                        <td class="px-4 py-2"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">{{ $klas->golongan_swdkllj }}</span></td>
-                                        <td class="px-4 py-2"><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">{{ $klas->jenis_kend }}</span></td>
-                                        <td class="px-4 py-2 text-right">
+                                        <td class="px-4 py-2 font-bold text-slate-900" data-label="Keyword">{{ $klas->keyword }}</td>
+                                        <td class="px-4 py-2" data-label="SWDKLLJ"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">{{ $klas->golongan_swdkllj }}</span></td>
+                                        <td class="px-4 py-2" data-label="STNK/TNKB"><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">{{ $klas->jenis_kend }}</span></td>
+                                        <td class="px-4 py-2 text-right" data-label="Aksi" data-action="true">
                                             <form action="{{ route('admin.delete_klasifikasi') }}" method="POST" class="inline" onsubmit="return confirm('Hapus klasifikasi ini?');">
                                                 @csrf
                                                 <input type="hidden" name="id" value="{{ $klas->id }}">
@@ -858,8 +956,8 @@
                         <svg class="w-5 h-5 text-slate-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
 
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
-                        <table class="w-full text-left text-xs text-slate-700">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 table-to-card-container">
+                        <table class="w-full text-left text-xs text-slate-700 table-to-card">
                             <thead class="bg-slate-50 uppercase text-[10px] font-bold text-slate-500 border-b border-slate-200">
                                 <tr>
                                     <th class="px-4 py-3">Merk</th>
@@ -1145,9 +1243,73 @@
                 </div>
 
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">Isi Pesan / Informasi Teks <span class="font-normal text-slate-400">(Opsional jika poster saja)</span></label>
-                    <textarea id="modalBannerContent" name="content" rows="3" placeholder="Tuliskan keterangan detail atau pengumuman jika diperlukan..."
-                              class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white"></textarea>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block font-bold text-slate-700">Isi Pesan / Informasi Teks <span class="font-normal text-slate-400">(Opsional jika poster saja)</span></label>
+                        <button type="button" onclick="toggleBannerTextPreview()" id="btnToggleBannerPreview" class="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Preview Teks</span>
+                        </button>
+                    </div>
+
+                    <!-- Toolbar Format Teks Banner -->
+                    <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1.5 rounded-t-xl border border-b-0 border-slate-200">
+                        <!-- Bold -->
+                        <button type="button" onclick="applyBannerFormat('bold')" title="Tebal / Bold" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs font-black transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            B
+                        </button>
+                        <!-- Italic -->
+                        <button type="button" onclick="applyBannerFormat('italic')" title="Miring / Italic" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs italic font-serif font-bold transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            I
+                        </button>
+                        <!-- Underline -->
+                        <button type="button" onclick="applyBannerFormat('underline')" title="Garis Bawah / Underline" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs underline font-bold transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            U
+                        </button>
+
+                        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+
+                        <!-- Numbering -->
+                        <button type="button" onclick="applyBannerFormat('number')" title="Daftar Nomor (Numbered List)" class="px-2 py-1 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold font-mono transition-colors cursor-pointer h-7 flex items-center gap-0.5 border border-transparent hover:border-slate-200 shadow-xs">
+                            1. 2. 3.
+                        </button>
+                        <!-- Bullet List -->
+                        <button type="button" onclick="applyBannerFormat('bullet')" title="Daftar Poin (Bullet List)" class="px-2 py-1 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold transition-colors cursor-pointer h-7 flex items-center gap-1 border border-transparent hover:border-slate-200 shadow-xs">
+                            • List
+                        </button>
+
+                        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+
+                        <!-- Align Left -->
+                        <button type="button" onclick="applyBannerFormat('align-left')" title="Rata Kiri" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h14"/></svg>
+                        </button>
+                        <!-- Align Center -->
+                        <button type="button" onclick="applyBannerFormat('align-center')" title="Rata Tengah" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M7 12h10M5 18h14"/></svg>
+                        </button>
+                        <!-- Align Right -->
+                        <button type="button" onclick="applyBannerFormat('align-right')" title="Rata Kanan" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M10 12h10M6 18h14"/></svg>
+                        </button>
+                        <!-- Align Justify -->
+                        <button type="button" onclick="applyBannerFormat('align-justify')" title="Rata Kiri Kanan (Justify)" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        </button>
+                    </div>
+
+                    <textarea id="modalBannerContent" name="content" rows="4" oninput="updateBannerLivePreview()" placeholder="Tuliskan keterangan detail atau pengumuman jika diperlukan..."
+                              class="w-full bg-slate-50 border border-slate-200 rounded-b-xl p-3 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white font-sans text-xs leading-relaxed"></textarea>
+
+                    <!-- Live Preview Box -->
+                    <div id="modalBannerPreviewWrapper" class="hidden mt-2 p-3.5 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-1.5">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-amber-900 pb-1 border-b border-amber-200/50">
+                            <span>Preview Tampilan Sisi User:</span>
+                            <span class="text-[10px] text-amber-700 font-normal">Sesuai format aplikasi</span>
+                        </div>
+                        <div id="modalBannerPreviewContent" class="text-xs text-slate-700 leading-relaxed min-h-[40px]">
+                            <span class="text-slate-400 italic">Belum ada konten untuk ditampilkan.</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Upload Gambar Banner -->
@@ -1345,7 +1507,118 @@
             .catch(() => alert('Terjadi kendala jaringan.'));
         }
 
-        // Banner Management Functions (Multi-Banner Slider)
+        // Banner Management Functions (Multi-Banner Slider & Rich Text)
+        function applyBannerFormat(type) {
+            const textarea = document.getElementById('modalBannerContent');
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const fullText = textarea.value;
+            const selected = fullText.substring(start, end);
+
+            let replacement = '';
+            let newCursorPos = start;
+
+            switch(type) {
+                case 'bold':
+                    replacement = `<b>${selected || 'Teks Tebal'}</b>`;
+                    newCursorPos = selected ? end + 7 : start + 3;
+                    break;
+                case 'italic':
+                    replacement = `<i>${selected || 'Teks Miring'}</i>`;
+                    newCursorPos = selected ? end + 7 : start + 3;
+                    break;
+                case 'underline':
+                    replacement = `<u>${selected || 'Garis Bawah'}</u>`;
+                    newCursorPos = selected ? end + 7 : start + 3;
+                    break;
+                case 'number':
+                    if (selected) {
+                        const lines = selected.split('\n');
+                        replacement = lines.map((line, idx) => `${idx + 1}. ${line.replace(/^\d+[\.\)]\s*/, '')}`).join('\n');
+                    } else {
+                        replacement = (start > 0 && fullText[start - 1] !== '\n' ? '\n' : '') + '1. Poin pertama\n2. Poin kedua\n3. Poin ketiga';
+                    }
+                    newCursorPos = start + replacement.length;
+                    break;
+                case 'bullet':
+                    if (selected) {
+                        const lines = selected.split('\n');
+                        replacement = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
+                    } else {
+                        replacement = (start > 0 && fullText[start - 1] !== '\n' ? '\n' : '') + '• Poin pertama\n• Poin kedua\n• Poin ketiga';
+                    }
+                    newCursorPos = start + replacement.length;
+                    break;
+                case 'align-left':
+                    replacement = `<p align="left">${selected || 'Teks Rata Kiri'}</p>`;
+                    newCursorPos = selected ? end + 19 : start + 16;
+                    break;
+                case 'align-center':
+                    replacement = `<p align="center">${selected || 'Teks Rata Tengah'}</p>`;
+                    newCursorPos = selected ? end + 21 : start + 18;
+                    break;
+                case 'align-right':
+                    replacement = `<p align="right">${selected || 'Teks Rata Kanan'}</p>`;
+                    newCursorPos = selected ? end + 20 : start + 17;
+                    break;
+                case 'align-justify':
+                    replacement = `<p align="justify">${selected || 'Teks Rata Kiri Kanan'}</p>`;
+                    newCursorPos = selected ? end + 22 : start + 19;
+                    break;
+            }
+
+            textarea.value = fullText.substring(0, start) + replacement + fullText.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            updateBannerLivePreview();
+        }
+
+        function toggleBannerTextPreview() {
+            const wrapper = document.getElementById('modalBannerPreviewWrapper');
+            if (!wrapper) return;
+            const isHidden = wrapper.classList.toggle('hidden');
+            if (!isHidden) {
+                updateBannerLivePreview();
+            }
+        }
+
+        function updateBannerLivePreview() {
+            const textarea = document.getElementById('modalBannerContent');
+            const previewEl = document.getElementById('modalBannerPreviewContent');
+            if (!textarea || !previewEl) return;
+
+            const raw = textarea.value.trim();
+            if (!raw) {
+                previewEl.innerHTML = '<span class="text-slate-400 italic">Belum ada konten untuk ditampilkan.</span>';
+                return;
+            }
+
+            // Sanitasi dan konversi HTML aman
+            let formatted = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // Whitelist tag yang diizinkan untuk formatting
+            formatted = formatted
+                .replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/gi, '<strong class="font-bold text-slate-900">$1</strong>')
+                .replace(/&lt;strong&gt;(.*?)&lt;\/strong&gt;/gi, '<strong class="font-bold text-slate-900">$1</strong>')
+                .replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gi, '<em class="italic">$1</em>')
+                .replace(/&lt;em&gt;(.*?)&lt;\/em&gt;/gi, '<em class="italic">$1</em>')
+                .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<span class="underline">$1</span>')
+                .replace(/&lt;p align="(left|center|right|justify)"&gt;(.*?)&lt;\/p&gt;/gi, '<p style="text-align:$1;" class="my-1">$2</p>')
+                .replace(/&lt;div align="(left|center|right|justify)"&gt;(.*?)&lt;\/div&gt;/gi, '<div style="text-align:$1;" class="my-1">$2</div>')
+                // Fallback Markdown format
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                // Newline ke br
+                .replace(/\n/g, '<br>');
+
+            previewEl.innerHTML = formatted;
+        }
+
         function openModalBanner() {
             document.getElementById('modalBannerTitle').innerText = 'Tambah Banner Baru';
             document.getElementById('modalBannerId').value = '';
@@ -1359,6 +1632,8 @@
             document.getElementById('modalBannerIsActive').checked = true;
             document.getElementById('modalBannerImagePreviewBox').classList.add('hidden');
             document.getElementById('modalBannerImagePreviewImg').src = '';
+            const previewWrapper = document.getElementById('modalBannerPreviewWrapper');
+            if (previewWrapper) previewWrapper.classList.add('hidden');
             document.getElementById('modalBanner').classList.remove('hidden');
         }
 
@@ -1382,6 +1657,11 @@
             } else {
                 previewImg.src = '';
                 previewBox.classList.add('hidden');
+            }
+
+            const previewWrapper = document.getElementById('modalBannerPreviewWrapper');
+            if (previewWrapper && !previewWrapper.classList.contains('hidden')) {
+                updateBannerLivePreview();
             }
 
             document.getElementById('modalBanner').classList.remove('hidden');
@@ -1481,25 +1761,25 @@
 
             tbody.innerHTML = logs.map(l => `
                 <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                    <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
                         ${new Date(l.created_at).toLocaleString('id-ID')}
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="User">
                         <span class="font-mono font-bold text-slate-900 block">${l.username}</span>
                         <span class="text-[10px] text-slate-500">${l.user_name || '-'}</span>
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="Aktivitas">
                         <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                             ${l.activity}
                         </span>
                     </td>
-                    <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" title="${l.detail || ''}">
+                    <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="${l.detail || ''}">
                         ${l.detail || '-'}
                     </td>
-                    <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap">
+                    <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
                         ${l.total_biaya && Number(l.total_biaya) > 0 ? 'Rp ' + Number(l.total_biaya).toLocaleString('id-ID') : '<span class="text-slate-400 font-normal">-</span>'}
                     </td>
-                    <td class="px-4 py-3 font-mono text-slate-500 text-[11px]">
+                    <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
                         ${l.ip_address || '-'}
                     </td>
                 </tr>
@@ -1528,12 +1808,12 @@
                     if (res.status === 'success' && res.data.length > 0) {
                         tbody.innerHTML = res.data.map(item => `
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-4 py-2.5 font-bold text-slate-900">${item.merk}</td>
-                                <td class="px-4 py-2.5 font-sans">${item.tipe}</td>
-                                <td class="px-4 py-2.5">${item.tahun_buat}</td>
-                                <td class="px-4 py-2.5 text-slate-600">${parseFloat(item.bobot).toFixed(3)}</td>
-                                <td class="px-4 py-2.5 font-bold text-emerald-700">Rp ${parseInt(item.njkb).toLocaleString('id-ID')}</td>
-                                <td class="px-4 py-2.5 text-right space-x-2 font-sans">
+                                <td class="px-4 py-2.5 font-bold text-slate-900" data-label="Merk">${item.merk}</td>
+                                <td class="px-4 py-2.5 font-sans" data-label="Tipe">${item.tipe}</td>
+                                <td class="px-4 py-2.5" data-label="Tahun">${item.tahun_buat}</td>
+                                <td class="px-4 py-2.5 text-slate-600" data-label="Bobot">${parseFloat(item.bobot).toFixed(3)}</td>
+                                <td class="px-4 py-2.5 font-bold text-emerald-700" data-label="Nilai Jual">Rp ${parseInt(item.njkb).toLocaleString('id-ID')}</td>
+                                <td class="px-4 py-2.5 text-right space-x-2 font-sans" data-label="Aksi" data-action="true">
                                     <button type="button" onclick="editNjkbItem(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="text-blue-600 hover:text-blue-800 font-bold">Edit</button>
                                     <button type="button" onclick="deleteNjkbItem(${item.id})" class="text-rose-600 hover:text-rose-800 font-bold">Hapus</button>
                                 </td>

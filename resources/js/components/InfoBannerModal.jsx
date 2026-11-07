@@ -9,6 +9,107 @@ import {
   IconExternalLink
 } from '@tabler/icons-react';
 
+function renderInlineFormatting(text) {
+  if (!text) return null;
+
+  // Regex tokenizer untuk tag bold (b, strong, **), italic (i, em, *), underline (u)
+  const tokenRegex = /(<b>[\s\S]*?<\/b>|<strong>[\s\S]*?<\/strong>|\*\*[\s\S]*?\*\*|<i>[\s\S]*?<\/i>|<em>[\s\S]*?<\/em>|\*[\s\S]*?\*|<u>[\s\S]*?<\/u>)/gi;
+  const parts = text.split(tokenRegex);
+
+  return parts.map((part, idx) => {
+    if (!part) return null;
+
+    // Bold match
+    if (/^(?:<b>|<strong>|\*\*)([\s\S]*)(?:<\/b>|<\/strong>|\*\*)$/i.test(part)) {
+      const match = part.match(/^(?:<b>|<strong>|\*\*)([\s\S]*)(?:<\/b>|<\/strong>|\*\*)$/i);
+      return <strong key={idx} className="font-extrabold text-slate-900">{match[1]}</strong>;
+    }
+
+    // Italic match
+    if (/^(?:<i>|<em>|\*)([\s\S]*)(?:<\/i>|<\/em>|\*)$/i.test(part)) {
+      const match = part.match(/^(?:<i>|<em>|\*)([\s\S]*)(?:<\/i>|<\/em>|\*)$/i);
+      return <em key={idx} className="italic text-slate-800">{match[1]}</em>;
+    }
+
+    // Underline match
+    if (/^<u>([\s\S]*)<\/u>$/i.test(part)) {
+      const match = part.match(/^<u>([\s\S]*)<\/u>$/i);
+      return <span key={idx} className="underline decoration-slate-400 underline-offset-2">{match[1]}</span>;
+    }
+
+    // Plain text
+    return part;
+  });
+}
+
+function BannerContentRenderer({ content }) {
+  if (!content) return null;
+
+  // Pisahkan baris
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
+      {lines.map((line, idx) => {
+        let trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} className="h-1.5" />;
+        }
+
+        // Cek tag alignment pembungkus baris: <p align="...">...</p> atau <div align="...">...</div>
+        let align = '';
+        const alignMatch = trimmed.match(/^<(?:p|div)\s+align="(left|center|right|justify)"\s*>(.*?)(?:<\/(?:p|div)>)?$/i);
+        if (alignMatch) {
+          align = alignMatch[1].toLowerCase();
+          trimmed = alignMatch[2].trim();
+        }
+
+        const alignClass = {
+          center: 'text-center',
+          right: 'text-right',
+          justify: 'text-justify',
+          left: 'text-left'
+        }[align] || '';
+
+        // Cek apakah Numbered List (1. atau 1) )
+        const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)$/);
+        if (numMatch) {
+          return (
+            <div key={idx} className={`flex items-start gap-2.5 my-1 ${alignClass}`}>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] shrink-0 font-mono mt-0.5 shadow-2xs">
+                {numMatch[1]}
+              </span>
+              <div className="flex-1 text-slate-700 font-medium">
+                {renderInlineFormatting(numMatch[2])}
+              </div>
+            </div>
+          );
+        }
+
+        // Cek apakah Bullet List (•, -, atau *)
+        const bulletMatch = trimmed.match(/^[•\-\*]\s+(.*)$/);
+        if (bulletMatch) {
+          return (
+            <div key={idx} className={`flex items-start gap-2.5 my-1 ${alignClass}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2"></span>
+              <div className="flex-1 text-slate-700 font-medium">
+                {renderInlineFormatting(bulletMatch[1])}
+              </div>
+            </div>
+          );
+        }
+
+        // Paragraf biasa dengan alignment
+        return (
+          <p key={idx} className={`${alignClass} leading-relaxed`}>
+            {renderInlineFormatting(trimmed)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function InfoBannerModal({ banner, onClose }) {
   // Ambil daftar banner (array atau fallback single object)
   const banners = React.useMemo(() => {
@@ -200,9 +301,7 @@ export default function InfoBannerModal({ banner, onClose }) {
                 </div>
 
                 {hasText && (
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-                    {currentBanner.content}
-                  </p>
+                  <BannerContentRenderer content={currentBanner.content} />
                 )}
 
                 {/* Tautan Luar Minimalis jika ada */}
