@@ -747,11 +747,14 @@
                     <!-- Form Parameter BBN 2 -->
                     <form action="{{ route('admin.save_config') }}" method="POST" class="space-y-4 pt-4 border-t border-slate-100">
                         @csrf
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">3. Tarif Penerbitan BPKB &amp; Jasa Cek Fisik Bantuan (BBN 2)</h3>
-                            <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer">
-                                Simpan Parameter BBN 2
-                            </button>
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">3. Tarif Penerbitan BPKB (PP 76/2020) &amp; Jasa Cek Fisik Bantuan (BBN 2)</h3>
+                                <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer">
+                                    Simpan Parameter BBN 2
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Penetapan tarif BPKB mengacu pada PP No. 76 Tahun 2020 (Roda 2/3: Rp 225.000, Roda 4+: Rp 375.000).</p>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             @foreach($grupTarifDasar as $row)

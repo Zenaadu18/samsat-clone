@@ -12,7 +12,8 @@ import {
   IconArrowRight,
   IconCar,
   IconMotorbike,
-  IconBuildingBank
+  IconBuildingBank,
+  IconInfoCircle
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate } from '../utils/formatters';
 import { getApiBase } from '../utils/config';
@@ -204,12 +205,13 @@ Pajak: ${r.tagihan_pajak > 0 ? 'Belum Lunas' : 'Sudah Lunas'}
 
 *RINCIAN ESTIMASI BIAYA:*
 1. Tagihan Pajak (PKB/Opsen/SWDKLLJ): ${formatRupiah(r.tagihan_pajak)}
-2. Penerbitan BPKB Baru: ${formatRupiah(r.biaya_bpkb)}
-3. Penerbitan STNK Baru (5 Thn): ${formatRupiah(r.biaya_stnk)}
-4. Plat Nomor Baru (TNKB): ${formatRupiah(r.biaya_tnkb)}
+2. Penerbitan BPKB Baru (PP 76/2020): ${formatRupiah(r.biaya_bpkb)}
+3. Penerbitan STNK Baru (PP 76/2020): ${formatRupiah(r.biaya_stnk)}
+4. Plat Nomor Baru / TNKB (PP 76/2020): ${formatRupiah(r.biaya_tnkb)}
 ${r.include_tembak ? `5. Cek Fisik Bantuan (Tembak): ${formatRupiah(r.biaya_tembak)}\n` : ''}
 *TOTAL ESTIMASI: ${formatRupiah(r.total_biaya)}*
 
+_Catatan: Perhitungan biaya penerbitan BPKB, STNK & TNKB mengacu pada PP No. 76 Tahun 2020 (Tarif PNBP Polri)._
 _Simulasi via Pajak.In NTT_`;
 
     navigator.clipboard.writeText(text);
@@ -498,6 +500,19 @@ _Simulasi via Pajak.In NTT_`;
               </>
             )}
           </button>
+
+          {/* Catatan Aturan Penetapan Biaya BPKB */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl flex items-start gap-2.5 text-xs text-slate-600">
+            <IconInfoCircle size={17} className="text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold text-slate-800 text-[11px] block">
+                Catatan Aturan Biaya BPKB &amp; Dokumen:
+              </span>
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                Perhitungan biaya penerbitan <strong>BPKB Baru</strong> di aplikasi ini mengacu pada <strong>Peraturan Pemerintah (PP) No. 76 Tahun 2020</strong> tentang PNBP Polri (R2/R3: Rp 225.000 &bull; R4+: Rp 375.000).
+              </p>
+            </div>
+          </div>
         </form>
       </div>
 
@@ -587,7 +602,7 @@ _Simulasi via Pajak.In NTT_`;
                       2. Penerbitan BPKB Baru
                     </div>
                     <div className="text-[11px] font-sans text-slate-500 mt-0.5">
-                      PNBP Buku BPKB Baru ({result.keterangan.kategori_roda})
+                      PNBP Buku BPKB Baru sesuai PP No. 76 Tahun 2020 ({result.keterangan.kategori_roda})
                     </div>
                   </div>
                 </div>
@@ -670,6 +685,27 @@ _Simulasi via Pajak.In NTT_`;
               </div>
               <div className="text-xl sm:text-2xl font-black font-mono-num text-emerald-400">
                 {formatRupiah(result.rincian_biaya.total_biaya)}
+              </div>
+            </div>
+
+            {/* Catatan Dasar Hukum Penetapan Tarif BPKB & Dokumen Registrasi */}
+            <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-start gap-3 text-xs text-blue-950">
+              <div className="p-1.5 bg-blue-100 text-blue-700 rounded-xl shrink-0 mt-0.5">
+                <IconInfoCircle size={18} />
+              </div>
+              <div className="space-y-1">
+                <span className="font-bold text-slate-900 block text-xs">
+                  Dasar Hukum Penetapan Biaya BPKB &amp; Dokumen Registrasi:
+                </span>
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  Perhitungan biaya penerbitan <strong>BPKB</strong>, <strong>STNK</strong>, dan <strong>TNKB (Plat Nomor)</strong> pada aplikasi ini mengacu secara resmi pada <strong>Peraturan Pemerintah Republik Indonesia Nomor 76 Tahun 2020</strong> tentang <em>Jenis dan Tarif atas Jenis Penerimaan Negara Bukan Pajak (PNBP) yang Berlaku pada Kepolisian Negara Republik Indonesia</em>.
+                </p>
+                <div className="text-[10px] text-slate-500 pt-0.5 flex flex-wrap gap-x-3 gap-y-1 font-mono">
+                  <span>&bull; BPKB Roda 2/3: <strong>Rp 225.000</strong></span>
+                  <span>&bull; BPKB Roda 4+: <strong>Rp 375.000</strong></span>
+                  <span>&bull; STNK 5 Thn: <strong>Rp 100.000 / Rp 200.000</strong></span>
+                  <span>&bull; TNKB / Plat: <strong>Rp 60.000 / Rp 100.000</strong></span>
+                </div>
               </div>
             </div>
           </div>
