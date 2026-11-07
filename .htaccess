@@ -5,8 +5,11 @@
     RewriteRule "(^|/)\.(?!well-known)" - [F]
     RewriteRule "\.(env|sql|bak|log|git|md|yml|yaml|json)$" - [F]
 
-    # Redirect seluruh request ke folder public/
-    RewriteCond %{REQUEST_URI} !^/public/
+    # Jangan rewrite jika request sudah ada di dalam public/ atau mengakses public langsung
+    RewriteCond %{REQUEST_URI} (public/|public$) [NC]
+    RewriteRule ^ - [L]
+
+    # Jika belum ada public/, arahkan request ke folder public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 

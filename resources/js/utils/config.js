@@ -5,7 +5,17 @@
 
 export function getBaseUrl() {
   if (window.__SAMSAT_CONFIG__?.baseUrl) {
-    return window.__SAMSAT_CONFIG__.baseUrl.replace(/\/+$/, '');
+    try {
+      const parsed = new URL(window.__SAMSAT_CONFIG__.baseUrl);
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')) {
+        parsed.protocol = window.location.protocol;
+        parsed.host = window.location.host;
+        return parsed.toString().replace(/\/+$/, '');
+      }
+      return window.__SAMSAT_CONFIG__.baseUrl.replace(/\/+$/, '');
+    } catch {
+      return window.__SAMSAT_CONFIG__.baseUrl.replace(/\/+$/, '');
+    }
   }
 
   const { origin, pathname } = window.location;
@@ -19,7 +29,17 @@ export function getBaseUrl() {
 
 export function getApiBase() {
   if (window.__SAMSAT_CONFIG__?.apiUrl && !window.__SAMSAT_CONFIG__.apiUrl.startsWith('/')) {
-    return window.__SAMSAT_CONFIG__.apiUrl.replace(/\/+$/, '');
+    try {
+      const parsedUrl = new URL(window.__SAMSAT_CONFIG__.apiUrl);
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1')) {
+        parsedUrl.protocol = window.location.protocol;
+        parsedUrl.host = window.location.host;
+        return parsedUrl.toString().replace(/\/+$/, '');
+      }
+      return window.__SAMSAT_CONFIG__.apiUrl.replace(/\/+$/, '');
+    } catch {
+      return window.__SAMSAT_CONFIG__.apiUrl.replace(/\/+$/, '');
+    }
   }
 
   // Jika apiUrl di-inject sebagai path relatif misal "/api/pwa", gabungkan dengan baseUrl

@@ -160,14 +160,6 @@ export default function UserLoginModal({ onLoginSuccess }) {
                   e.currentTarget.style.display = 'none';
                 }}
               />
-              {/* Amber Status Ping Badge */}
-              <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-20">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                <span
-                  style={{ backgroundColor: '#f59e0b' }}
-                  className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-white shadow-xs"
-                ></span>
-              </span>
             </div>
 
             <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-slate-900">
@@ -285,9 +277,8 @@ export default function UserLoginModal({ onLoginSuccess }) {
                       backgroundColor: rememberMe ? '#006948' : '#e2e8f0',
                       color: '#ffffff',
                     }}
-                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-all shadow-xs ${
-                      rememberMe ? 'bg-[#006948] text-white' : 'bg-slate-200 text-transparent'
-                    }`}
+                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-all shadow-xs ${rememberMe ? 'bg-[#006948] text-white' : 'bg-slate-200 text-transparent'
+                      }`}
                   >
                     <IconCheck size={14} stroke={3} className={rememberMe ? 'opacity-100 text-white' : 'opacity-0'} />
                   </div>
@@ -297,7 +288,7 @@ export default function UserLoginModal({ onLoginSuccess }) {
                 </label>
               </div>
 
-              {/* Primary Action: Masuk Sekarang (iPhone / iOS Safari 100% Compatible) */}
+              {/* Primary Action: Masuk Sekarang (iPhone 7 Plus / iOS 15 & iPhone 16 Pro / iOS 18 100% Compatible) */}
               <div className="pt-1 flex flex-col gap-2">
                 <button
                   type="submit"
@@ -309,19 +300,26 @@ export default function UserLoginModal({ onLoginSuccess }) {
                     WebkitAppearance: 'none',
                     appearance: 'none',
                     border: 'none',
+                    borderRadius: '16px',
+                    height: '52px',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     WebkitTapHighlightColor: 'transparent',
                   }}
                   className="btn-login-gradient relative w-full h-[52px] rounded-2xl hover:brightness-105 active:scale-[0.99] text-white text-sm font-semibold tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/20 transition-all cursor-pointer overflow-hidden group disabled:opacity-50"
                 >
                   {loading ? (
-                    <span className="text-white font-semibold tracking-wide">Memverifikasi...</span>
+                    <span style={{ color: '#ffffff', fontWeight: 600 }}>Memverifikasi...</span>
                   ) : (
                     <>
-                      <span className="text-white font-semibold tracking-wide">Masuk Sekarang</span>
+                      <span style={{ color: '#ffffff', fontWeight: 600 }}>Masuk Sekarang</span>
                       <IconArrowRight
                         size={20}
                         stroke={2.2}
-                        className="text-white transition-transform group-hover:translate-x-1 shrink-0"
+                        style={{ color: '#ffffff', flexShrink: 0 }}
+                        className="transition-transform group-hover:translate-x-1 shrink-0"
                       />
                     </>
                   )}

@@ -15,17 +15,20 @@ use App\Http\Controllers\Api\UserAuthController;
 // -------------------------------------------------------------------------
 // PWA Auth & Banner API Fallback Routes
 // Menjamin endpoint auth tetap aktif jika routes/api.php di hosting belum termuat
+// Mendukung akses langsung maupun subfolder (misal /clone2/public/)
 // -------------------------------------------------------------------------
-Route::prefix('api/pwa/auth')->middleware('throttle:120,1')->group(function () {
-    Route::post('/login', [UserAuthController::class, 'login']);
-    Route::get('/me', [UserAuthController::class, 'me']);
-    Route::post('/logout', [UserAuthController::class, 'logout']);
-});
+foreach (['', 'clone2/public/', 'Clone2/public/', 'public/'] as $subPrefix) {
+    Route::prefix($subPrefix . 'api/pwa/auth')->middleware('throttle:120,1')->group(function () {
+        Route::match(['post', 'get'], '/login', [UserAuthController::class, 'login']);
+        Route::get('/me', [UserAuthController::class, 'me']);
+        Route::post('/logout', [UserAuthController::class, 'logout']);
+    });
 
-Route::prefix('api/pwa')->middleware('throttle:60,1')->group(function () {
-    Route::get('/banner', [UserAuthController::class, 'banner']);
-    Route::get('/user/activities', [UserAuthController::class, 'activities']);
-});
+    Route::prefix($subPrefix . 'api/pwa')->middleware('throttle:60,1')->group(function () {
+        Route::get('/banner', [UserAuthController::class, 'banner']);
+        Route::get('/user/activities', [UserAuthController::class, 'activities']);
+    });
+}
 
 // -------------------------------------------------------------------------
 // Panel Admin (Full Feature Controller)
@@ -76,4 +79,4 @@ Route::middleware(['throttle:30,1'])->group(function () {
 // -------------------------------------------------------------------------
 Route::get('/{any?}', function () {
     return view('pwa');
-})->where('any', '^(?!admin|api|build|icons|assets|storage).*$')->name('pwa.app');
+})->where('any', '^(?!admin|api|.*api|build|icons|assets|storage).*$')->name('pwa.app');
