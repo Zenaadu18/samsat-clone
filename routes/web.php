@@ -18,16 +18,22 @@ use App\Http\Controllers\Api\UserAuthController;
 // Mendukung akses langsung maupun subfolder (misal /clone2/public/)
 // -------------------------------------------------------------------------
 foreach (['', 'clone2/public/', 'Clone2/public/', 'public/'] as $subPrefix) {
-    Route::prefix($subPrefix . 'api/pwa/auth')->middleware('throttle:120,1')->group(function () {
-        Route::match(['post', 'get'], '/login', [UserAuthController::class, 'login']);
-        Route::get('/me', [UserAuthController::class, 'me']);
-        Route::post('/logout', [UserAuthController::class, 'logout']);
-    });
+    Route::prefix($subPrefix . 'api/pwa/auth')
+        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+        ->middleware('throttle:120,1')
+        ->group(function () {
+            Route::match(['post', 'get'], '/login', [UserAuthController::class, 'login']);
+            Route::get('/me', [UserAuthController::class, 'me']);
+            Route::post('/logout', [UserAuthController::class, 'logout']);
+        });
 
-    Route::prefix($subPrefix . 'api/pwa')->middleware('throttle:60,1')->group(function () {
-        Route::get('/banner', [UserAuthController::class, 'banner']);
-        Route::get('/user/activities', [UserAuthController::class, 'activities']);
-    });
+    Route::prefix($subPrefix . 'api/pwa')
+        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+        ->middleware('throttle:60,1')
+        ->group(function () {
+            Route::get('/banner', [UserAuthController::class, 'banner']);
+            Route::get('/user/activities', [UserAuthController::class, 'activities']);
+        });
 }
 
 // -------------------------------------------------------------------------

@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             '/calculate_tax.php',
             'api/*',
             '/api/*',
+            '*api/*',
+            '*/api/*',
+            '*api/pwa/*',
         ]);
 
         // Daftarkan alias middleware
@@ -33,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         // Kembalikan error 404 dan 422 sebagai JSON untuk request API
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, Request $request) {
-            if ($request->is('api/*')) {
+            if ($request->is('*api/*')) {
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'Validasi gagal.',
@@ -43,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, Request $request) {
-            if ($request->is('api/*')) {
+            if ($request->is('*api/*')) {
                 return response()->json([
                     'status'  => 'error',
                     'message' => 'Endpoint tidak ditemukan.',

@@ -55,12 +55,14 @@ export default function UserLoginModal({ onLoginSuccess }) {
 
     try {
       const apiBase = getApiBase();
+      const csrfToken = window.__SAMSAT_CONFIG__?.csrfToken || '';
       const res = await fetch(`${apiBase}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
+          ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken, 'X-XSRF-TOKEN': csrfToken } : {}),
         },
         body: JSON.stringify({
           username: username.trim(),
