@@ -24,10 +24,10 @@ function App() {
   const [simulationPrefill, setSimulationPrefill] = useState(null);
   const [bbn2Nopol, setBbn2Nopol] = useState('');
 
-  // State Autentikasi Pengguna
+  // State Autentikasi Pengguna (Dukungan localStorage untuk Ingat Saya & sessionStorage untuk sesi sementara)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const stored = localStorage.getItem('infopkb_user');
+      const stored = localStorage.getItem('infopkb_user') || sessionStorage.getItem('infopkb_user');
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -44,9 +44,9 @@ function App() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    // Verifikasi Token User ke server
+    // Verifikasi Token User ke server (dari localStorage atau sessionStorage)
     const apiBase = getApiBase();
-    const token = localStorage.getItem('infopkb_token');
+    const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
     if (token) {
       fetch(`${apiBase}/auth/me`, {
         headers: {
@@ -59,7 +59,11 @@ function App() {
         .then((res) => {
           if (res.status === 'success' && res.data) {
             setCurrentUser(res.data);
-            localStorage.setItem('infopkb_user', JSON.stringify(res.data));
+            if (localStorage.getItem('infopkb_token')) {
+              localStorage.setItem('infopkb_user', JSON.stringify(res.data));
+            } else {
+              sessionStorage.setItem('infopkb_user', JSON.stringify(res.data));
+            }
           } else {
             // Token hangus, diblokir, atau perangkat tidak cocok
             handleLogout();
@@ -97,7 +101,7 @@ function App() {
 
   const handleLogout = () => {
     const apiBase = getApiBase();
-    const token = localStorage.getItem('infopkb_token');
+    const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
     if (token) {
       fetch(`${apiBase}/auth/logout`, {
         method: 'POST',
@@ -109,6 +113,8 @@ function App() {
     }
     localStorage.removeItem('infopkb_token');
     localStorage.removeItem('infopkb_user');
+    sessionStorage.removeItem('infopkb_token');
+    sessionStorage.removeItem('infopkb_user');
     // Hapus status sesi banner saat logout agar login sesi berikutnya dapat melihat banner
     sessionStorage.removeItem('infopkb_banner_session_seen');
     setCurrentUser(null);

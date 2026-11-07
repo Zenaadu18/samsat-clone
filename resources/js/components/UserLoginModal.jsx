@@ -100,26 +100,31 @@ export default function UserLoginModal({ onLoginSuccess }) {
         throw new Error(json?.message || 'Username atau Password salah.');
       }
 
-      // Simpan preferensi Ingat Saya
+      // Simpan preferensi Ingat Saya & sesi login
       try {
         if (rememberMe) {
+          // Ingat Saya aktif: Sesi login & username disimpan permanen di localStorage
           localStorage.setItem('infopkb_remembered_username', username.trim());
           localStorage.setItem('infopkb_remember_me', 'true');
+          localStorage.setItem('infopkb_token', json.data.token);
+          localStorage.setItem('infopkb_user', JSON.stringify(json.data.user));
+          sessionStorage.removeItem('infopkb_token');
+          sessionStorage.removeItem('infopkb_user');
         } else {
+          // Ingat Saya tidak aktif: Sesi hanya disimpan sementara di sessionStorage (hilang saat browser ditutup)
+          sessionStorage.setItem('infopkb_token', json.data.token);
+          sessionStorage.setItem('infopkb_user', JSON.stringify(json.data.user));
+          localStorage.removeItem('infopkb_token');
+          localStorage.removeItem('infopkb_user');
           localStorage.removeItem('infopkb_remembered_username');
           localStorage.setItem('infopkb_remember_me', 'false');
         }
-      } catch (e) {
-        // Abaikan jika localStorage terbatas
-      }
-
-      // Simpan session token & info user dengan perlindungan fallback
-      try {
-        localStorage.setItem('infopkb_token', json.data.token);
-        localStorage.setItem('infopkb_user', JSON.stringify(json.data.user));
       } catch (storageErr) {
-        sessionStorage.setItem('infopkb_token', json.data.token);
-        sessionStorage.setItem('infopkb_user', JSON.stringify(json.data.user));
+        // Fallback darurat jika private browsing memblokir localStorage
+        try {
+          sessionStorage.setItem('infopkb_token', json.data.token);
+          sessionStorage.setItem('infopkb_user', JSON.stringify(json.data.user));
+        } catch {}
       }
 
       if (onLoginSuccess) {
@@ -165,7 +170,7 @@ export default function UserLoginModal({ onLoginSuccess }) {
             </div>
 
             <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-slate-900">
-              Selamat Datang Kembali
+              Selamat Datang
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 px-2">
               Masuk ke akun Anda untuk melanjutkan aktivitas
@@ -223,7 +228,7 @@ export default function UserLoginModal({ onLoginSuccess }) {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="nama@domain.com atau username"
+                    placeholder="username"
                     className="w-full h-full pl-11 pr-4 rounded-xl bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors font-medium"
                     required
                   />
