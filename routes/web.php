@@ -16,9 +16,31 @@ use App\Http\Controllers\Api\PwaApiController;
 // -------------------------------------------------------------------------
 // PWA Auth & Core Services API Fallback Routes
 // Menjamin seluruh endpoint PWA tetap aktif jika routes/api.php di hosting belum termuat
-// Mendukung akses langsung maupun variasi subfolder (misal /clone2/public/)
+// Mendukung akses langsung maupun variasi subfolder cPanel (misal /bpad/, /bpad/public/, /clone2/public/)
 // -------------------------------------------------------------------------
-foreach (['', 'clone2/public/', 'Clone2/public/', 'public/'] as $subPrefix) {
+$detectedSubfolder = '';
+if (isset($_SERVER['SCRIPT_NAME'])) {
+    $dir = trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+    if ($dir !== '' && $dir !== '.') {
+        $detectedSubfolder = $dir . '/';
+    }
+}
+
+$subPrefixes = array_unique(array_filter([
+    '',
+    'bpad/',
+    'bpad/public/',
+    'Bpad/',
+    'Bpad/public/',
+    'clone2/',
+    'Clone2/',
+    'clone2/public/',
+    'Clone2/public/',
+    'public/',
+    $detectedSubfolder,
+]));
+
+foreach ($subPrefixes as $subPrefix) {
     Route::prefix($subPrefix . 'api/pwa/auth')
         ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
         ->middleware('throttle:120,1')
