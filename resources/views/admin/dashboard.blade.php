@@ -265,6 +265,7 @@
                                     <th class="px-4 py-3">ID</th>
                                     <th class="px-4 py-3">Username</th>
                                     <th class="px-4 py-3">Nama Asli / Lengkap</th>
+                                    <th class="px-4 py-3">Asal UPTD</th>
                                     <th class="px-4 py-3">Role / Akses</th>
                                     <th class="px-4 py-3">Sesi Perangkat</th>
                                     <th class="px-4 py-3">Status Akses</th>
@@ -278,6 +279,12 @@
                                         <td class="px-4 py-3 font-mono text-slate-400" data-label="ID">#{{ $u->id }}</td>
                                         <td class="px-4 py-3 font-mono font-bold text-slate-900" data-label="Username">{{ $u->username }}</td>
                                         <td class="px-4 py-3 font-semibold text-slate-800" data-label="Nama Lengkap">{{ $u->name }}</td>
+                                        <td class="px-4 py-3" data-label="Asal UPTD">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ !empty($u->uptd) ? (($u->uptd === 'Kantor Pusat') ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200') : 'bg-slate-100 text-slate-500 border border-dashed border-slate-300' }}">
+                                                <svg class="w-3 h-3 {{ !empty($u->uptd) ? (($u->uptd === 'Kantor Pusat') ? 'text-amber-600' : 'text-blue-600') : 'text-slate-400' }} shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                <span class="truncate max-w-[130px]" title="{{ $u->uptd ?: 'Belum Diisi' }}">{{ $u->uptd ?: 'Belum Diisi' }}</span>
+                                            </span>
+                                        </td>
                                         <td class="px-4 py-3" data-label="Role">
                                             @if(($u->role ?? 'user') === 'admin')
                                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
@@ -355,7 +362,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-4 py-8 text-center text-slate-400">
+                                        <td colspan="9" class="px-4 py-8 text-center text-slate-400">
                                             Belum ada pengguna terdaftar. Klik "Tambah Pengguna Baru" untuk membuat akun.
                                         </td>
                                     </tr>
@@ -1123,6 +1130,16 @@
                 </div>
 
                 <div>
+                    <label class="block font-bold text-slate-700 mb-1">Asal UPTD <span class="font-normal text-slate-400">(Pemetaan Lokasi)</span></label>
+                    <select id="modalUserUptd" name="uptd" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:bg-white font-semibold">
+                        @foreach($listUptd as $upt)
+                            <option value="{{ $upt }}">{{ $upt }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">Pilih Kantor Pusat atau salah satu UPTD dari 22 Kab/Kota di NTT.</p>
+                </div>
+
+                <div>
                     <label class="block font-bold text-slate-700 mb-1">Role / Hak Akses</label>
                     <select id="modalUserRole" name="role" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:bg-white font-semibold">
                         <option value="user">Pengguna Biasa (Hanya Cek Pajak, BBN 2, Riwayat)</option>
@@ -1447,6 +1464,7 @@
             document.getElementById('modalUserId').value = '';
             document.getElementById('modalUserUsername').value = '';
             document.getElementById('modalUserName').value = '';
+            document.getElementById('modalUserUptd').value = 'Kantor Pusat';
             document.getElementById('modalUserRole').value = 'user';
             document.getElementById('modalUserPassword').value = '';
             document.getElementById('modalUserPassword').type = 'password';
@@ -1463,6 +1481,7 @@
             document.getElementById('modalUserId').value = user.id;
             document.getElementById('modalUserUsername').value = user.username;
             document.getElementById('modalUserName').value = user.name;
+            document.getElementById('modalUserUptd').value = user.uptd || 'Kantor Pusat';
             document.getElementById('modalUserRole').value = user.role || 'user';
             document.getElementById('modalUserPassword').value = '';
             document.getElementById('modalUserPassword').type = 'password';

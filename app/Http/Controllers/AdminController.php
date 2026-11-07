@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 
 class AdminController extends Controller
 {
@@ -112,6 +114,7 @@ class AdminController extends Controller
             'pesanStatus'      => session('pesanStatus', ''),
             'pesanError'       => session('pesanError', ''),
             'usersList'        => $usersList,
+            'listUptd'         => User::LIST_UPTD,
             'recentActivities' => $recentActivities,
             'bannersList'      => $bannersList,
             'banner'           => $banner,
@@ -448,6 +451,20 @@ class AdminController extends Controller
         $role = $request->input('role', 'user') === 'admin' ? 'admin' : 'user';
         $roleId = $role === 'admin' ? 1 : 2;
         $isBlocked = $request->has('is_blocked') ? 1 : 0;
+        $uptd = trim((string)$request->input('uptd', 'Kantor Pusat'));
+
+        if (!in_array($uptd, User::LIST_UPTD, true)) {
+            $uptd = 'Kantor Pusat';
+        }
+
+        // Auto-healing: pastikan kolom uptd tersedia di tabel users jika belum termigrasi
+        if (!Schema::hasColumn('users', 'uptd')) {
+            try {
+                Schema::table('users', function ($table) {
+                    $table->string('uptd', 100)->nullable()->default('Kantor Pusat')->after('name');
+                });
+            } catch (\Throwable $e) {}
+        }
 
         if (empty($username) || empty($name)) {
             return redirect()->route('admin')->with('pesanError', 'Username dan Nama Lengkap wajib diisi.');
@@ -463,6 +480,7 @@ class AdminController extends Controller
             $updateData = [
                 'username'   => $username,
                 'name'       => $name,
+                'uptd'       => $uptd,
                 'role'       => $role,
                 'role_id'    => $roleId,
                 'is_blocked' => $isBlocked,
@@ -492,6 +510,7 @@ class AdminController extends Controller
             DB::table('users')->insert([
                 'username'   => $username,
                 'name'       => $name,
+                'uptd'       => $uptd,
                 'role'       => $role,
                 'role_id'    => $roleId,
                 'password'   => Hash::make($password),
