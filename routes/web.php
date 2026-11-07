@@ -5,6 +5,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Api\UserAuthController;
+use App\Http\Controllers\Api\PwaApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -13,9 +14,9 @@ use App\Http\Controllers\Api\UserAuthController;
 */
 
 // -------------------------------------------------------------------------
-// PWA Auth & Banner API Fallback Routes
-// Menjamin endpoint auth tetap aktif jika routes/api.php di hosting belum termuat
-// Mendukung akses langsung maupun subfolder (misal /clone2/public/)
+// PWA Auth & Core Services API Fallback Routes
+// Menjamin seluruh endpoint PWA tetap aktif jika routes/api.php di hosting belum termuat
+// Mendukung akses langsung maupun variasi subfolder (misal /clone2/public/)
 // -------------------------------------------------------------------------
 foreach (['', 'clone2/public/', 'Clone2/public/', 'public/'] as $subPrefix) {
     Route::prefix($subPrefix . 'api/pwa/auth')
@@ -33,6 +34,12 @@ foreach (['', 'clone2/public/', 'Clone2/public/', 'public/'] as $subPrefix) {
         ->group(function () {
             Route::get('/banner', [UserAuthController::class, 'banner']);
             Route::get('/user/activities', [UserAuthController::class, 'activities']);
+            Route::post('/check', [PwaApiController::class, 'check']);
+            Route::post('/simulate', [PwaApiController::class, 'simulate']);
+            Route::post('/simulate-bbn2', [PwaApiController::class, 'simulateBbn2']);
+            Route::get('/njkb/nopol', [PwaApiController::class, 'checkNjkbByNopol']);
+            Route::get('/njkb', [PwaApiController::class, 'searchNjkb']);
+            Route::get('/config', [PwaApiController::class, 'config']);
         });
 }
 

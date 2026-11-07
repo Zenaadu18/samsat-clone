@@ -19,20 +19,20 @@ export default function MobileFrame({ children, activeTab, setActiveTab, current
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100/90 text-slate-800 flex flex-col items-center select-none font-sans antialiased">
+    <div className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-slate-100/90 text-slate-800 flex flex-col items-center select-none font-sans antialiased">
       {/* Responsive App Shell: 100% on phone, max-w-4xl on tablet/PC */}
-      <div className="w-full max-w-4xl min-h-screen bg-slate-50 flex flex-col relative shadow-sm border-x border-slate-200/70">
+      <div className="w-full max-w-4xl h-full max-h-full bg-slate-50 flex flex-col relative shadow-sm border-x border-slate-200/70 overflow-hidden">
 
         {/* Offline Alert Strip */}
         {!isOnline && (
-          <div className="sticky top-0 bg-amber-500 text-white text-xs font-semibold py-1.5 px-4 flex items-center justify-center gap-2 z-50 animate-pulse shadow-sm">
+          <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold py-1.5 px-4 flex items-center justify-center gap-2 z-50 animate-pulse shadow-sm">
             <IconWifiOff size={15} stroke={2} />
             <span>Koneksi offline. Menampilkan data lokal tersimpan.</span>
           </div>
         )}
 
-        {/* Top App Bar — STICKY & PERMANENTLY AT THE TOP */}
-        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
+        {/* Top App Bar — POSISI TETAP DI ATAS (FIXED / NON-SCROLLING) */}
+        <header className="shrink-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl overflow-hidden bg-emerald-600 flex items-center justify-center text-white shadow-sm shadow-emerald-600/20 shrink-0 relative">
               <IconCar size={18} stroke={2.2} className="shrink-0 absolute inset-0 m-auto text-white/80" />
@@ -89,8 +89,11 @@ export default function MobileFrame({ children, activeTab, setActiveTab, current
           </div>
         </header>
 
-        {/* Main Content Area with generous bottom padding for fixed navigation */}
-        <main className="flex-1 w-full pb-24 sm:pb-28">
+        {/* Main Content Area — HANYA KONTEN TENGAH INI YANG DAPAT DI-SCROLL */}
+        <main
+          className="flex-1 w-full overflow-y-auto overflow-x-hidden pb-28 overscroll-y-contain"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {children}
 
           <footer className="mt-8 mb-4 text-center">
