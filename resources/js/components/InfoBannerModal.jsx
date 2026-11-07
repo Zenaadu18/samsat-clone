@@ -9,103 +9,171 @@ import {
   IconExternalLink
 } from '@tabler/icons-react';
 
-function renderInlineFormatting(text) {
-  if (!text) return null;
+function sanitizeBannerHtml(dirtyHtml) {
+  if (!dirtyHtml) return '';
+  let clean = dirtyHtml
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+    .replace(/<link\b[^>]*>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
 
-  // Regex tokenizer untuk tag bold (b, strong, **), italic (i, em, *), underline (u)
-  const tokenRegex = /(<b>[\s\S]*?<\/b>|<strong>[\s\S]*?<\/strong>|\*\*[\s\S]*?\*\*|<i>[\s\S]*?<\/i>|<em>[\s\S]*?<\/em>|\*[\s\S]*?\*|<u>[\s\S]*?<\/u>)/gi;
-  const parts = text.split(tokenRegex);
+  // Bersihkan inline event handler berbahaya
+  clean = clean.replace(/\son\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+  clean = clean.replace(/href\s*=\s*(?:'javascript:[^']*'|"javascript:[^"]*"|javascript:[^\s>]+)/gi, 'href="#"');
 
-  return parts.map((part, idx) => {
-    if (!part) return null;
+  return clean;
+}
 
-    // Bold match
-    if (/^(?:<b>|<strong>|\*\*)([\s\S]*)(?:<\/b>|<\/strong>|\*\*)$/i.test(part)) {
-      const match = part.match(/^(?:<b>|<strong>|\*\*)([\s\S]*)(?:<\/b>|<\/strong>|\*\*)$/i);
-      return <strong key={idx} className="font-extrabold text-slate-900">{match[1]}</strong>;
+function convertLegacyPlainTextToHtml(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  let html = '';
+  let inOl = false;
+  let inUl = false;
+
+  lines.forEach((line) => {
+    let trimmed = line.trim();
+    if (!trimmed) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (inUl) { html += '</ul>'; inUl = false; }
+      return;
     }
 
-    // Italic match
-    if (/^(?:<i>|<em>|\*)([\s\S]*)(?:<\/i>|<\/em>|\*)$/i.test(part)) {
-      const match = part.match(/^(?:<i>|<em>|\*)([\s\S]*)(?:<\/i>|<\/em>|\*)$/i);
-      return <em key={idx} className="italic text-slate-800">{match[1]}</em>;
+    // Deteksi alignment tag
+    let alignAttr = '';
+    const alignMatch = trimmed.match(/^<(?:p|div)\s+align="(left|center|right|justify)"\s*>(.*?)(?:<\/(?:p|div)>)?$/i);
+    if (alignMatch) {
+      alignAttr = ` style="text-align: ${alignMatch[1].toLowerCase()};"`;
+      trimmed = alignMatch[2].trim();
     }
 
-    // Underline match
-    if (/^<u>([\s\S]*)<\/u>$/i.test(part)) {
-      const match = part.match(/^<u>([\s\S]*)<\/u>$/i);
-      return <span key={idx} className="underline decoration-slate-400 underline-offset-2">{match[1]}</span>;
+    // Format markdown bold/italic
+    let formattedLine = trimmed
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+      .replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+    // Deteksi Numbered List (1. atau 1) )
+    const numMatch = formattedLine.match(/^(\d+)[\.\)]\s+(.*)$/);
+    if (numMatch) {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += `<li>${numMatch[2]}</li>`;
+      return;
     }
 
-    // Plain text
-    return part;
+    // Deteksi Bullet List (•, -, *)
+    const bulletMatch = formattedLine.match(/^[•\-\*]\s+(.*)$/);
+    if (bulletMatch) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (!inUl) { html += '<ul>'; inUl = true; }
+      html += `<li>${bulletMatch[1]}</li>`;
+      return;
+    }
+
+    if (inOl) { html += '</ol>'; inOl = false; }
+    if (inUl) { html += '</ul>'; inUl = false; }
+    html += `<p${alignAttr}>${formattedLine}</p>`;
   });
+
+  if (inOl) html += '</ol>';
+  if (inUl) html += '</ul>';
+  return html;
 }
 
 function BannerContentRenderer({ content }) {
   if (!content) return null;
 
-  // Pisahkan baris
-  const lines = content.split('\n');
+  const htmlContent = React.useMemo(() => {
+    const raw = String(content).trim();
+    const isHtml = /<(?:p|div|ol|ul|li|b|strong|i|em|u|s|span|h[1-6]|br)[\s>]/i.test(raw);
+    return isHtml ? sanitizeBannerHtml(raw) : convertLegacyPlainTextToHtml(raw);
+  }, [content]);
 
   return (
-    <div className="space-y-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-      {lines.map((line, idx) => {
-        let trimmed = line.trim();
-        if (!trimmed) {
-          return <div key={idx} className="h-1.5" />;
+    <div className="banner-rich-content-wrapper">
+      <style>{`
+        .banner-rich-content-wrapper {
+          color: #334155;
+          line-height: 1.625;
+          font-size: 0.8125rem;
         }
-
-        // Cek tag alignment pembungkus baris: <p align="...">...</p> atau <div align="...">...</div>
-        let align = '';
-        const alignMatch = trimmed.match(/^<(?:p|div)\s+align="(left|center|right|justify)"\s*>(.*?)(?:<\/(?:p|div)>)?$/i);
-        if (alignMatch) {
-          align = alignMatch[1].toLowerCase();
-          trimmed = alignMatch[2].trim();
+        @media (min-width: 640px) {
+          .banner-rich-content-wrapper {
+            font-size: 0.875rem;
+          }
         }
-
-        const alignClass = {
-          center: 'text-center',
-          right: 'text-right',
-          justify: 'text-justify',
-          left: 'text-left'
-        }[align] || '';
-
-        // Cek apakah Numbered List (1. atau 1) )
-        const numMatch = trimmed.match(/^(\d+)[\.\)]\s+(.*)$/);
-        if (numMatch) {
-          return (
-            <div key={idx} className={`flex items-start gap-2.5 my-1 ${alignClass}`}>
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] shrink-0 font-mono mt-0.5 shadow-2xs">
-                {numMatch[1]}
-              </span>
-              <div className="flex-1 text-slate-700 font-medium">
-                {renderInlineFormatting(numMatch[2])}
-              </div>
-            </div>
-          );
+        .banner-rich-content-wrapper p {
+          margin-bottom: 0.45rem;
+          line-height: 1.625;
         }
-
-        // Cek apakah Bullet List (•, -, atau *)
-        const bulletMatch = trimmed.match(/^[•\-\*]\s+(.*)$/);
-        if (bulletMatch) {
-          return (
-            <div key={idx} className={`flex items-start gap-2.5 my-1 ${alignClass}`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2"></span>
-              <div className="flex-1 text-slate-700 font-medium">
-                {renderInlineFormatting(bulletMatch[1])}
-              </div>
-            </div>
-          );
+        .banner-rich-content-wrapper p:last-child {
+          margin-bottom: 0;
         }
-
-        // Paragraf biasa dengan alignment
-        return (
-          <p key={idx} className={`${alignClass} leading-relaxed`}>
-            {renderInlineFormatting(trimmed)}
-          </p>
-        );
-      })}
+        .banner-rich-content-wrapper ol {
+          list-style-type: decimal !important;
+          list-style-position: outside !important;
+          padding-left: 1.4rem !important;
+          margin: 0.45rem 0 !important;
+        }
+        .banner-rich-content-wrapper ol li {
+          margin-bottom: 0.35rem !important;
+          padding-left: 0.2rem !important;
+        }
+        .banner-rich-content-wrapper ul {
+          list-style-type: disc !important;
+          list-style-position: outside !important;
+          padding-left: 1.4rem !important;
+          margin: 0.45rem 0 !important;
+        }
+        .banner-rich-content-wrapper ul li {
+          margin-bottom: 0.35rem !important;
+          padding-left: 0.2rem !important;
+        }
+        .banner-rich-content-wrapper b, .banner-rich-content-wrapper strong {
+          font-weight: 800 !important;
+          color: #0f172a !important;
+        }
+        .banner-rich-content-wrapper i, .banner-rich-content-wrapper em {
+          font-style: italic !important;
+        }
+        .banner-rich-content-wrapper u {
+          text-decoration: underline !important;
+          text-underline-offset: 2.5px !important;
+        }
+        .banner-rich-content-wrapper s {
+          text-decoration: line-through !important;
+        }
+        .banner-rich-content-wrapper h4 {
+          font-size: 1rem;
+          font-weight: 800;
+          color: #0f172a;
+          margin-top: 0.6rem;
+          margin-bottom: 0.25rem;
+        }
+        .banner-rich-content-wrapper [align="center"],
+        .banner-rich-content-wrapper [style*="text-align: center"],
+        .banner-rich-content-wrapper [style*="text-align:center"] {
+          text-align: center !important;
+        }
+        .banner-rich-content-wrapper [align="right"],
+        .banner-rich-content-wrapper [style*="text-align: right"],
+        .banner-rich-content-wrapper [style*="text-align:right"] {
+          text-align: right !important;
+        }
+        .banner-rich-content-wrapper [align="justify"],
+        .banner-rich-content-wrapper [style*="text-align: justify"],
+        .banner-rich-content-wrapper [style*="text-align:justify"] {
+          text-align: justify !important;
+        }
+        .banner-rich-content-wrapper [align="left"],
+        .banner-rich-content-wrapper [style*="text-align: left"],
+        .banner-rich-content-wrapper [style*="text-align:left"] {
+          text-align: left !important;
+        }
+      `}</style>
+      <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
     </div>
   );
 }

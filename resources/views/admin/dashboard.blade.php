@@ -189,6 +189,79 @@
                 transform: rotate(180deg);
             }
         }
+
+        /* Word-Style Rich Banner Editor Canvas & User-Side Preview */
+        .banner-editor-canvas {
+            outline: none !important;
+        }
+        .banner-editor-canvas:empty:before,
+        .banner-editor-canvas.is-empty:before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+            display: block;
+        }
+        .banner-editor-canvas p, .banner-rich-content p {
+            margin-bottom: 0.45rem;
+            line-height: 1.625;
+        }
+        .banner-editor-canvas p:last-child, .banner-rich-content p:last-child {
+            margin-bottom: 0;
+        }
+        .banner-editor-canvas ol, .banner-rich-content ol {
+            list-style-type: decimal !important;
+            padding-left: 1.4rem !important;
+            margin: 0.5rem 0 !important;
+        }
+        .banner-editor-canvas ol li, .banner-rich-content ol li {
+            margin-bottom: 0.35rem !important;
+            padding-left: 0.2rem !important;
+        }
+        .banner-editor-canvas ul, .banner-rich-content ul {
+            list-style-type: disc !important;
+            padding-left: 1.4rem !important;
+            margin: 0.5rem 0 !important;
+        }
+        .banner-editor-canvas ul li, .banner-rich-content ul li {
+            margin-bottom: 0.35rem !important;
+            padding-left: 0.2rem !important;
+        }
+        .banner-editor-canvas b, .banner-editor-canvas strong,
+        .banner-rich-content b, .banner-rich-content strong {
+            font-weight: 800 !important;
+            color: #0f172a !important;
+        }
+        .banner-editor-canvas i, .banner-editor-canvas em,
+        .banner-rich-content i, .banner-rich-content em {
+            font-style: italic !important;
+        }
+        .banner-editor-canvas u, .banner-rich-content u {
+            text-decoration: underline !important;
+            text-underline-offset: 2px !important;
+        }
+        .banner-editor-canvas s, .banner-rich-content s {
+            text-decoration: line-through !important;
+        }
+        .banner-editor-canvas [align="center"], .banner-rich-content [align="center"],
+        .banner-editor-canvas [style*="text-align: center"], .banner-rich-content [style*="text-align: center"],
+        .banner-editor-canvas [style*="text-align:center"], .banner-rich-content [style*="text-align:center"] {
+            text-align: center !important;
+        }
+        .banner-editor-canvas [align="right"], .banner-rich-content [align="right"],
+        .banner-editor-canvas [style*="text-align: right"], .banner-rich-content [style*="text-align: right"],
+        .banner-editor-canvas [style*="text-align:right"], .banner-rich-content [style*="text-align:right"] {
+            text-align: right !important;
+        }
+        .banner-editor-canvas [align="justify"], .banner-rich-content [align="justify"],
+        .banner-editor-canvas [style*="text-align: justify"], .banner-rich-content [style*="text-align: justify"],
+        .banner-editor-canvas [style*="text-align:justify"], .banner-rich-content [style*="text-align:justify"] {
+            text-align: justify !important;
+        }
+        .banner-editor-canvas [align="left"], .banner-rich-content [align="left"],
+        .banner-editor-canvas [style*="text-align: left"], .banner-rich-content [style*="text-align: left"],
+        .banner-editor-canvas [style*="text-align:left"], .banner-rich-content [style*="text-align:left"] {
+            text-align: left !important;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col selection:bg-emerald-500 selection:text-white">
@@ -1334,68 +1407,98 @@
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="block font-bold text-slate-700">Isi Pesan / Informasi Teks <span class="font-normal text-slate-400">(Opsional jika poster saja)</span></label>
-                        <button type="button" onclick="toggleBannerTextPreview()" id="btnToggleBannerPreview" class="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 cursor-pointer">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                            <span>Preview Teks</span>
+                        <button type="button" onclick="toggleBannerTextPreview()" id="btnToggleBannerPreview" class="text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200/80 flex items-center gap-1 cursor-pointer transition-colors shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Preview Tampilan</span>
                         </button>
                     </div>
 
-                    <!-- Toolbar Format Teks Banner -->
-                    <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1.5 rounded-t-xl border border-b-0 border-slate-200">
+                    <!-- Toolbar Word-Style Format Teks Banner -->
+                    <div class="flex flex-wrap items-center gap-1 bg-slate-100 p-1.5 rounded-t-xl border border-b-0 border-slate-200 text-slate-700 select-none">
                         <!-- Bold -->
-                        <button type="button" onclick="applyBannerFormat('bold')" title="Tebal / Bold" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs font-black transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('bold');" id="tbBtnBold" title="Tebal / Bold (Ctrl+B)" class="p-1.5 hover:bg-white rounded-lg text-xs font-black transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             B
                         </button>
                         <!-- Italic -->
-                        <button type="button" onclick="applyBannerFormat('italic')" title="Miring / Italic" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs italic font-serif font-bold transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('italic');" id="tbBtnItalic" title="Miring / Italic (Ctrl+I)" class="p-1.5 hover:bg-white rounded-lg text-xs italic font-serif font-bold transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             I
                         </button>
                         <!-- Underline -->
-                        <button type="button" onclick="applyBannerFormat('underline')" title="Garis Bawah / Underline" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs underline font-bold transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('underline');" id="tbBtnUnderline" title="Garis Bawah / Underline (Ctrl+U)" class="p-1.5 hover:bg-white rounded-lg text-xs underline font-bold transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             U
                         </button>
-
-                        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
-
-                        <!-- Numbering -->
-                        <button type="button" onclick="applyBannerFormat('number')" title="Daftar Nomor (Numbered List)" class="px-2 py-1 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold font-mono transition-colors cursor-pointer h-7 flex items-center gap-0.5 border border-transparent hover:border-slate-200 shadow-xs">
-                            1. 2. 3.
-                        </button>
-                        <!-- Bullet List -->
-                        <button type="button" onclick="applyBannerFormat('bullet')" title="Daftar Poin (Bullet List)" class="px-2 py-1 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-[11px] font-bold transition-colors cursor-pointer h-7 flex items-center gap-1 border border-transparent hover:border-slate-200 shadow-xs">
-                            • List
+                        <!-- Strikethrough -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('strikeThrough');" id="tbBtnStrike" title="Coret / Strikethrough" class="p-1.5 hover:bg-white rounded-lg text-xs line-through font-bold transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
+                            S
                         </button>
 
-                        <span class="w-[1px] h-4 bg-slate-300 mx-0.5"></span>
+                        <span class="w-[1px] h-4 bg-slate-300 mx-1"></span>
 
-                        <!-- Align Left -->
-                        <button type="button" onclick="applyBannerFormat('align-left')" title="Rata Kiri" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <!-- Penomoran Otomatis 1. 2. 3. (Word Style: Enter langsung nomor berikutnya) -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('insertOrderedList');" id="tbBtnOl" title="Penomoran Otomatis 1. 2. 3. (Tekan Enter nomor berikutnya muncul otomatis seperti di Word)" class="px-2 py-1 hover:bg-white rounded-lg text-[11px] font-bold font-mono transition-all cursor-pointer h-7 flex items-center gap-1.5 border border-transparent hover:border-slate-200 hover:shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 6h13M7 12h13M7 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                            <span>1. 2. 3.</span>
+                        </button>
+                        <!-- Daftar Simbol / Poin (Word Style: Enter langsung simbol berikutnya) -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('insertUnorderedList');" id="tbBtnUl" title="Daftar Simbol / Poin (Tekan Enter simbol berikutnya muncul otomatis seperti di Word)" class="px-2 py-1 hover:bg-white rounded-lg text-[11px] font-bold transition-all cursor-pointer h-7 flex items-center gap-1.5 border border-transparent hover:border-slate-200 hover:shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                            <span>• Simbol</span>
+                        </button>
+
+                        <span class="w-[1px] h-4 bg-slate-300 mx-1"></span>
+
+                        <!-- Rata Kiri -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('justifyLeft');" id="tbBtnAlignLeft" title="Rata Kiri" class="p-1.5 hover:bg-white rounded-lg text-xs transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h14"/></svg>
                         </button>
-                        <!-- Align Center -->
-                        <button type="button" onclick="applyBannerFormat('align-center')" title="Rata Tengah" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <!-- Rata Tengah -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('justifyCenter');" id="tbBtnAlignCenter" title="Rata Tengah" class="p-1.5 hover:bg-white rounded-lg text-xs transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M7 12h10M5 18h14"/></svg>
                         </button>
-                        <!-- Align Right -->
-                        <button type="button" onclick="applyBannerFormat('align-right')" title="Rata Kanan" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <!-- Rata Kanan -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('justifyRight');" id="tbBtnAlignRight" title="Rata Kanan" class="p-1.5 hover:bg-white rounded-lg text-xs transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M10 12h10M6 18h14"/></svg>
                         </button>
-                        <!-- Align Justify -->
-                        <button type="button" onclick="applyBannerFormat('align-justify')" title="Rata Kiri Kanan (Justify)" class="p-1.5 hover:bg-white text-slate-700 hover:text-slate-900 rounded-lg text-xs transition-colors cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 shadow-xs">
+                        <!-- Rata Kiri-Kanan (Justify) -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('justifyFull');" id="tbBtnAlignJustify" title="Rata Kiri Kanan (Justify)" class="p-1.5 hover:bg-white rounded-lg text-xs transition-all cursor-pointer w-7 h-7 flex items-center justify-center border border-transparent hover:border-slate-200 hover:shadow-2xs">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        </button>
+
+                        <span class="w-[1px] h-4 bg-slate-300 mx-1"></span>
+
+                        <!-- Format Paragraf / Heading -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('formatBlock', '<p>');" title="Paragraf Biasa" class="px-2 py-0.5 hover:bg-white rounded-lg text-[10px] font-bold border border-transparent hover:border-slate-200 cursor-pointer">
+                            Teks
+                        </button>
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('formatBlock', '<h4>');" title="Subjudul (Teks Sedang)" class="px-2 py-0.5 hover:bg-white rounded-lg text-[10px] font-black border border-transparent hover:border-slate-200 cursor-pointer">
+                            H4
+                        </button>
+
+                        <!-- Clear Formatting -->
+                        <button type="button" onmousedown="event.preventDefault(); execBannerEditor('removeFormat');" title="Hapus Format / Normal" class="p-1.5 hover:bg-white text-slate-400 hover:text-rose-600 rounded-lg text-xs transition-all cursor-pointer w-7 h-7 flex items-center justify-center ml-auto border border-transparent hover:border-slate-200">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
 
-                    <textarea id="modalBannerContent" name="content" rows="4" oninput="updateBannerLivePreview()" placeholder="Tuliskan keterangan detail atau pengumuman jika diperlukan..."
-                              class="w-full bg-slate-50 border border-slate-200 rounded-b-xl p-3 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:bg-white font-sans text-xs leading-relaxed"></textarea>
+                    <!-- Area Ketik Word-Style (ContentEditable Canvas) -->
+                    <div id="modalBannerRichEditor"
+                         contenteditable="true"
+                         spellcheck="false"
+                         role="textbox"
+                         aria-multiline="true"
+                         class="banner-editor-canvas min-h-[140px] max-h-[260px] overflow-y-auto bg-white border border-slate-200 rounded-b-xl p-3.5 text-slate-800 text-xs sm:text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 focus:outline-none transition-all custom-scrollbar leading-relaxed"
+                         data-placeholder="Ketik isi pengumuman seperti di Word... Klik '1. 2. 3.' untuk penomoran otomatis atau '• Simbol' untuk poin (tekan Enter untuk nomor/simbol selanjutnya).">
+                    </div>
+                    <!-- Hidden input penampung data HTML yang dikirim ke server -->
+                    <input type="hidden" id="modalBannerContent" name="content">
 
                     <!-- Live Preview Box -->
-                    <div id="modalBannerPreviewWrapper" class="hidden mt-2 p-3.5 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-1.5">
+                    <div id="modalBannerPreviewWrapper" class="hidden mt-2.5 p-3.5 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-1.5">
                         <div class="flex items-center justify-between text-[11px] font-bold text-amber-900 pb-1 border-b border-amber-200/50">
                             <span>Preview Tampilan Sisi User:</span>
-                            <span class="text-[10px] text-amber-700 font-normal">Sesuai format aplikasi</span>
+                            <span class="text-[10px] text-amber-700 font-normal">Tampilan identik dengan aplikasi user</span>
                         </div>
-                        <div id="modalBannerPreviewContent" class="text-xs text-slate-700 leading-relaxed min-h-[40px]">
+                        <div id="modalBannerPreviewContent" class="banner-rich-content text-xs text-slate-700 leading-relaxed min-h-[40px]">
                             <span class="text-slate-400 italic">Belum ada konten untuk ditampilkan.</span>
                         </div>
                     </div>
@@ -2006,72 +2109,71 @@
             .catch(() => alert('Terjadi kendala jaringan.'));
         }
 
-        // Banner Management Functions (Multi-Banner Slider & Rich Text)
-        function applyBannerFormat(type) {
-            const textarea = document.getElementById('modalBannerContent');
-            if (!textarea) return;
+        // =====================================================================
+        // WORD-STYLE RICH TEXT BANNER EDITOR (PENGALAMAN MENGETIK SEPERTI DI WORD)
+        // =====================================================================
+        function execBannerEditor(cmd, val = null) {
+            const editor = document.getElementById('modalBannerRichEditor');
+            if (!editor) return;
+            editor.focus();
+            try {
+                document.execCommand(cmd, false, val);
+            } catch(e) {}
+            syncBannerEditorContent();
+            updateToolbarStates();
+        }
 
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const fullText = textarea.value;
-            const selected = fullText.substring(start, end);
+        function syncBannerEditorContent() {
+            const editor = document.getElementById('modalBannerRichEditor');
+            const hiddenInput = document.getElementById('modalBannerContent');
+            if (!editor || !hiddenInput) return;
 
-            let replacement = '';
-            let newCursorPos = start;
+            const html = editor.innerHTML.trim();
+            const text = editor.innerText.trim();
 
-            switch(type) {
-                case 'bold':
-                    replacement = `<b>${selected || 'Teks Tebal'}</b>`;
-                    newCursorPos = selected ? end + 7 : start + 3;
-                    break;
-                case 'italic':
-                    replacement = `<i>${selected || 'Teks Miring'}</i>`;
-                    newCursorPos = selected ? end + 7 : start + 3;
-                    break;
-                case 'underline':
-                    replacement = `<u>${selected || 'Garis Bawah'}</u>`;
-                    newCursorPos = selected ? end + 7 : start + 3;
-                    break;
-                case 'number':
-                    if (selected) {
-                        const lines = selected.split('\n');
-                        replacement = lines.map((line, idx) => `${idx + 1}. ${line.replace(/^\d+[\.\)]\s*/, '')}`).join('\n');
-                    } else {
-                        replacement = (start > 0 && fullText[start - 1] !== '\n' ? '\n' : '') + '1. Poin pertama\n2. Poin kedua\n3. Poin ketiga';
-                    }
-                    newCursorPos = start + replacement.length;
-                    break;
-                case 'bullet':
-                    if (selected) {
-                        const lines = selected.split('\n');
-                        replacement = lines.map(line => `• ${line.replace(/^[•\-\*]\s*/, '')}`).join('\n');
-                    } else {
-                        replacement = (start > 0 && fullText[start - 1] !== '\n' ? '\n' : '') + '• Poin pertama\n• Poin kedua\n• Poin ketiga';
-                    }
-                    newCursorPos = start + replacement.length;
-                    break;
-                case 'align-left':
-                    replacement = `<p align="left">${selected || 'Teks Rata Kiri'}</p>`;
-                    newCursorPos = selected ? end + 19 : start + 16;
-                    break;
-                case 'align-center':
-                    replacement = `<p align="center">${selected || 'Teks Rata Tengah'}</p>`;
-                    newCursorPos = selected ? end + 21 : start + 18;
-                    break;
-                case 'align-right':
-                    replacement = `<p align="right">${selected || 'Teks Rata Kanan'}</p>`;
-                    newCursorPos = selected ? end + 20 : start + 17;
-                    break;
-                case 'align-justify':
-                    replacement = `<p align="justify">${selected || 'Teks Rata Kiri Kanan'}</p>`;
-                    newCursorPos = selected ? end + 22 : start + 19;
-                    break;
+            if (!text && !editor.querySelector('img')) {
+                hiddenInput.value = '';
+            } else {
+                hiddenInput.value = html;
             }
 
-            textarea.value = fullText.substring(0, start) + replacement + fullText.substring(end);
-            textarea.focus();
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
             updateBannerLivePreview();
+        }
+
+        function updateToolbarStates() {
+            try {
+                const isBold = document.queryCommandState('bold');
+                const isItalic = document.queryCommandState('italic');
+                const isUnderline = document.queryCommandState('underline');
+                const isStrike = document.queryCommandState('strikeThrough');
+                const isOl = document.queryCommandState('insertOrderedList');
+                const isUl = document.queryCommandState('insertUnorderedList');
+                const isLeft = document.queryCommandState('justifyLeft');
+                const isCenter = document.queryCommandState('justifyCenter');
+                const isRight = document.queryCommandState('justifyRight');
+                const isJustify = document.queryCommandState('justifyFull');
+
+                toggleBtnActive('tbBtnBold', isBold);
+                toggleBtnActive('tbBtnItalic', isItalic);
+                toggleBtnActive('tbBtnUnderline', isUnderline);
+                toggleBtnActive('tbBtnStrike', isStrike);
+                toggleBtnActive('tbBtnOl', isOl);
+                toggleBtnActive('tbBtnUl', isUl);
+                toggleBtnActive('tbBtnAlignLeft', isLeft);
+                toggleBtnActive('tbBtnAlignCenter', isCenter);
+                toggleBtnActive('tbBtnAlignRight', isRight);
+                toggleBtnActive('tbBtnAlignJustify', isJustify);
+            } catch(e) {}
+        }
+
+        function toggleBtnActive(btnId, isActive) {
+            const el = document.getElementById(btnId);
+            if (!el) return;
+            if (isActive) {
+                el.classList.add('bg-white', 'text-amber-800', 'border-amber-300', 'shadow-2xs');
+            } else {
+                el.classList.remove('bg-white', 'text-amber-800', 'border-amber-300', 'shadow-2xs');
+            }
         }
 
         function toggleBannerTextPreview() {
@@ -2084,39 +2186,139 @@
         }
 
         function updateBannerLivePreview() {
-            const textarea = document.getElementById('modalBannerContent');
+            const editor = document.getElementById('modalBannerRichEditor');
             const previewEl = document.getElementById('modalBannerPreviewContent');
-            if (!textarea || !previewEl) return;
+            if (!editor || !previewEl) return;
 
-            const raw = textarea.value.trim();
-            if (!raw) {
+            const html = editor.innerHTML.trim();
+            const text = editor.innerText.trim();
+
+            if (!text && !editor.querySelector('img')) {
                 previewEl.innerHTML = '<span class="text-slate-400 italic">Belum ada konten untuk ditampilkan.</span>';
                 return;
             }
 
-            // Sanitasi dan konversi HTML aman
-            let formatted = raw
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-
-            // Whitelist tag yang diizinkan untuk formatting
-            formatted = formatted
-                .replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/gi, '<strong class="font-bold text-slate-900">$1</strong>')
-                .replace(/&lt;strong&gt;(.*?)&lt;\/strong&gt;/gi, '<strong class="font-bold text-slate-900">$1</strong>')
-                .replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gi, '<em class="italic">$1</em>')
-                .replace(/&lt;em&gt;(.*?)&lt;\/em&gt;/gi, '<em class="italic">$1</em>')
-                .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<span class="underline">$1</span>')
-                .replace(/&lt;p align="(left|center|right|justify)"&gt;(.*?)&lt;\/p&gt;/gi, '<p style="text-align:$1;" class="my-1">$2</p>')
-                .replace(/&lt;div align="(left|center|right|justify)"&gt;(.*?)&lt;\/div&gt;/gi, '<div style="text-align:$1;" class="my-1">$2</div>')
-                // Fallback Markdown format
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                // Newline ke br
-                .replace(/\n/g, '<br>');
-
-            previewEl.innerHTML = formatted;
+            previewEl.innerHTML = html;
         }
+
+        function convertPlainTextToEditorHtml(text) {
+            if (!text) return '';
+            const lines = text.split('\n');
+            let html = '';
+            let inOl = false, inUl = false;
+
+            lines.forEach(line => {
+                let trimmed = line.trim();
+                if (!trimmed) {
+                    if (inOl) { html += '</ol>'; inOl = false; }
+                    if (inUl) { html += '</ul>'; inUl = false; }
+                    return;
+                }
+
+                // Cek alignment
+                let alignAttr = '';
+                const alignMatch = trimmed.match(/^<(?:p|div)\s+align="(left|center|right|justify)"\s*>(.*?)(?:<\/(?:p|div)>)?$/i);
+                if (alignMatch) {
+                    alignAttr = ` style="text-align: ${alignMatch[1].toLowerCase()};"`;
+                    trimmed = alignMatch[2].trim();
+                }
+
+                // Inline markdown
+                let formattedLine = trimmed
+                    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                    .replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+                // Deteksi Numbered List (1. atau 1) )
+                const numMatch = formattedLine.match(/^(\d+)[\.\)]\s+(.*)$/);
+                if (numMatch) {
+                    if (inUl) { html += '</ul>'; inUl = false; }
+                    if (!inOl) { html += '<ol>'; inOl = true; }
+                    html += `<li>${numMatch[2]}</li>`;
+                    return;
+                }
+
+                // Deteksi Bullet List (•, -, *)
+                const bulletMatch = formattedLine.match(/^[•\-\*]\s+(.*)$/);
+                if (bulletMatch) {
+                    if (inOl) { html += '</ol>'; inOl = false; }
+                    if (!inUl) { html += '<ul>'; inUl = true; }
+                    html += `<li>${bulletMatch[1]}</li>`;
+                    return;
+                }
+
+                if (inOl) { html += '</ol>'; inOl = false; }
+                if (inUl) { html += '</ul>'; inUl = false; }
+                html += `<p${alignAttr}>${formattedLine}</p>`;
+            });
+
+            if (inOl) html += '</ol>';
+            if (inUl) html += '</ul>';
+            return html;
+        }
+
+        function checkEditorPlaceholder() {
+            const editor = document.getElementById('modalBannerRichEditor');
+            if (!editor) return;
+            const text = editor.innerText.trim();
+            if (!text && !editor.querySelector('img')) {
+                editor.classList.add('is-empty');
+            } else {
+                editor.classList.remove('is-empty');
+            }
+        }
+
+        // Inisialisasi event listener editor dan form banner
+        document.addEventListener('DOMContentLoaded', function() {
+            const editor = document.getElementById('modalBannerRichEditor');
+            const form = document.getElementById('formBanner');
+
+            if (editor) {
+                editor.addEventListener('focus', function() {
+                    try {
+                        document.execCommand('defaultParagraphSeparator', false, 'p');
+                    } catch(e) {}
+                });
+
+                ['input', 'keyup', 'mouseup', 'paste', 'blur'].forEach(evt => {
+                    editor.addEventListener(evt, function() {
+                        syncBannerEditorContent();
+                        updateToolbarStates();
+                        checkEditorPlaceholder();
+                    });
+                });
+
+                // Auto-detection format penomoran/simbol saat mengetik "1. " atau "- " atau "• "
+                editor.addEventListener('keydown', function(e) {
+                    if (e.key === ' ') {
+                        const sel = window.getSelection();
+                        if (sel && sel.isCollapsed && sel.anchorNode) {
+                            const node = sel.anchorNode;
+                            const text = node.textContent || '';
+                            const offset = sel.anchorOffset;
+                            const beforeText = text.substring(0, offset).trim();
+
+                            if (beforeText === '1.' || beforeText === '1)') {
+                                e.preventDefault();
+                                node.textContent = text.substring(offset);
+                                execBannerEditor('insertOrderedList');
+                                return;
+                            } else if (beforeText === '-' || beforeText === '*' || beforeText === '•') {
+                                e.preventDefault();
+                                node.textContent = text.substring(offset);
+                                execBannerEditor('insertUnorderedList');
+                                return;
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (form) {
+                form.addEventListener('submit', function() {
+                    syncBannerEditorContent();
+                });
+            }
+        });
 
         function openModalBanner() {
             document.getElementById('modalBannerTitle').innerText = 'Tambah Banner Baru';
@@ -2125,14 +2327,24 @@
             document.getElementById('modalBannerTitleInput').value = '';
             document.getElementById('modalBannerOrder').value = '0';
             document.getElementById('modalBannerType').value = 'info';
+            
+            const editor = document.getElementById('modalBannerRichEditor');
+            if (editor) {
+                editor.innerHTML = '';
+                checkEditorPlaceholder();
+            }
             document.getElementById('modalBannerContent').value = '';
+            
             document.getElementById('modalBannerImageFile').value = '';
             document.getElementById('modalBannerLink').value = '';
             document.getElementById('modalBannerIsActive').checked = true;
             document.getElementById('modalBannerImagePreviewBox').classList.add('hidden');
             document.getElementById('modalBannerImagePreviewImg').src = '';
+            
             const previewWrapper = document.getElementById('modalBannerPreviewWrapper');
             if (previewWrapper) previewWrapper.classList.add('hidden');
+            
+            updateBannerLivePreview();
             document.getElementById('modalBanner').classList.remove('hidden');
         }
 
@@ -2143,7 +2355,21 @@
             document.getElementById('modalBannerTitleInput').value = banner.title || '';
             document.getElementById('modalBannerOrder').value = banner.order_num || 0;
             document.getElementById('modalBannerType').value = banner.type || 'info';
-            document.getElementById('modalBannerContent').value = banner.content || '';
+            
+            const rawContent = banner.content || '';
+            const editor = document.getElementById('modalBannerRichEditor');
+            if (editor) {
+                if (!rawContent.trim()) {
+                    editor.innerHTML = '';
+                } else if (/<(?:p|div|ol|ul|li|b|strong|i|em|u|br|span|h[1-6])[\s>]/i.test(rawContent)) {
+                    editor.innerHTML = rawContent;
+                } else {
+                    editor.innerHTML = convertPlainTextToEditorHtml(rawContent);
+                }
+                checkEditorPlaceholder();
+            }
+            document.getElementById('modalBannerContent').value = editor ? editor.innerHTML : rawContent;
+
             document.getElementById('modalBannerImageFile').value = '';
             document.getElementById('modalBannerLink').value = banner.link_url || '';
             document.getElementById('modalBannerIsActive').checked = parseInt(banner.is_active) === 1;
