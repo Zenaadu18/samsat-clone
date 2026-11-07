@@ -34,9 +34,23 @@
     </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.jsx'])
+    <style>
+        html, body {
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overscroll-behavior-x: none;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+    </style>
 </head>
-<body class="bg-slate-100 font-sans antialiased text-slate-800 select-none">
-    <div id="root"></div>
+<body class="bg-slate-100 font-sans antialiased text-slate-800 select-none overflow-x-hidden w-full max-w-full">
+    <div id="root" class="w-full max-w-full overflow-x-hidden min-h-screen"></div>
 
     <!-- Service Worker Registration -->
     <script>

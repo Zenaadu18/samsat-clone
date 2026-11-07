@@ -112,7 +112,7 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
       {/* Top Section: Hero Card + Quick Search Grid on Tablet/PC */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
         {/* Hero Card */}
-        <div 
+        <div
           className="relative overflow-hidden rounded-2xl card-gradient-emerald-hero text-white p-5 sm:p-6 shadow-lg shadow-emerald-950/20 flex flex-col justify-between border border-emerald-600/30"
           style={{
             backgroundColor: '#064e3b',
@@ -120,11 +120,6 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
           }}
         >
           <div className="relative z-10 space-y-3">
-            <div className="inline-flex items-center gap-1.5 bg-emerald-600/70 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-semibold border border-emerald-400/30">
-              <IconSparkles size={13} stroke={2} className="text-amber-300 shrink-0" />
-              <span>Program Keringanan Pajak NTT 2026</span>
-            </div>
-
             <div>
               <h2 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight">
                 Simulasi Balik Nama (BBN 2)
