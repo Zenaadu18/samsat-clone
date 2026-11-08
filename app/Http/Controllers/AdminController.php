@@ -81,7 +81,7 @@ class AdminController extends Controller
         // Ringkasan Statistik Database
         $stats = [
             'total_users'       => DB::table('users')->count(),
-            'total_activities'  => DB::table('activity_logs')->count(),
+            'total_activities'  => DB::table('activity_logs')->whereNotIn('activity', ['Login Aplikasi', 'Logout Aplikasi', 'Login', 'Logout'])->count(),
             'total_njkb'        => DB::table('njkb_data')->count(),
             'total_njub'        => DB::table('njmkb_data')->count(),
             'total_klasifikasi' => count($dataKlasifikasi),
@@ -91,12 +91,18 @@ class AdminController extends Controller
         // Ambil Data Pengguna Aplikasi
         $usersList = DB::table('users')->orderBy('id', 'desc')->get();
 
-        // Ambil Data Aktivitas Pengguna (10 Terakhir untuk Dashboard + Pagination Log, tanpa login/logout)
-        $recentActivities = DB::table('activity_logs')
+        // Ambil Seluruh Data Riwayat Aktivitas Pengguna (Audit Logs)
+        $allActivities = DB::table('activity_logs')
             ->whereNotIn('activity', ['Login Aplikasi', 'Logout Aplikasi', 'Login', 'Logout'])
             ->orderBy('id', 'desc')
-            ->limit(10)
-            ->get();
+            ->limit(2000)
+            ->get()
+            ->map(function ($item) {
+                $item->created_at_formatted = !empty($item->created_at)
+                    ? date('d/m/Y H:i:s', strtotime($item->created_at)) . ' WITA'
+                    : '-';
+                return $item;
+            });
 
         // Kategori Aktivitas Unik untuk Filter Dropdown
         $distinctActivities = DB::table('activity_logs')
@@ -118,24 +124,25 @@ class AdminController extends Controller
         $bannersList = DB::table('banners')->orderBy('order_num', 'asc')->orderBy('id', 'desc')->get();
 
         return view('admin.dashboard', [
-            'adminUsername'    => Session::get('admin_username', 'Admin'),
-            'pesanStatus'      => session('pesanStatus', ''),
-            'pesanError'       => session('pesanError', ''),
-            'usersList'        => $usersList,
-            'listUptd'         => User::LIST_UPTD,
-            'recentActivities'   => $recentActivities,
+            'adminUsername'      => Session::get('admin_username', 'Admin'),
+            'pesanStatus'        => session('pesanStatus', ''),
+            'pesanError'         => session('pesanError', ''),
+            'usersList'          => $usersList,
+            'listUptd'           => User::LIST_UPTD,
+            'allActivities'      => $allActivities,
+            'recentActivities'   => $allActivities,
             'distinctActivities' => $distinctActivities,
-            'bannersList'      => $bannersList,
-            'banner'           => $banner,
-            'grupAmnesti'      => $grupAmnesti,
-            'grupSistem'       => $grupSistem,
-            'grupBobot'        => $grupBobot,
-            'grupTarifDasar'   => $grupTarifDasar,
-            'dataPkb'          => $dataPkb,
-            'dataStnk'         => $dataStnk,
-            'dataSwdkllj'      => $dataSwdkllj,
-            'dataKlasifikasi'  => $dataKlasifikasi,
-            'stats'            => $stats,
+            'bannersList'        => $bannersList,
+            'banner'             => $banner,
+            'grupAmnesti'        => $grupAmnesti,
+            'grupSistem'         => $grupSistem,
+            'grupBobot'          => $grupBobot,
+            'grupTarifDasar'     => $grupTarifDasar,
+            'dataPkb'            => $dataPkb,
+            'dataStnk'           => $dataStnk,
+            'dataSwdkllj'        => $dataSwdkllj,
+            'dataKlasifikasi'    => $dataKlasifikasi,
+            'stats'              => $stats,
         ]);
     }
 

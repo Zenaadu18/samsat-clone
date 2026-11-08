@@ -1621,7 +1621,7 @@
             if (menuKey === 'users') {
                 renderUsersTable();
             } else if (menuKey === 'logs') {
-                fetchLogs();
+                renderLogsTable();
             }
 
             // Close mobile sidebar on select
@@ -1964,9 +1964,272 @@
             container.innerHTML = html;
         }
 
+        // =====================================================================
+        // RIWAYAT AKTIVITAS (AUDIT LOGS) FILTER, PAGINASI & TAMPILKAN SEMUA
+        // =====================================================================
+        let rawLogsData = @json($allActivities ?? []);
+        let logFilterState = {
+            search: '',
+            activity: '',
+            perPage: 15,
+            currentPage: 1,
+            showAll: false
+        };
+
+        let logSearchTimer = null;
+        function debounceLogSearch(e) {
+            clearTimeout(logSearchTimer);
+            logSearchTimer = setTimeout(() => {
+                logFilterState.search = e.target.value.trim().toLowerCase();
+                logFilterState.currentPage = 1;
+                renderLogsTable();
+            }, 250);
+        }
+
+        function handleLogActivityChange(val) {
+            logFilterState.activity = val;
+            logFilterState.currentPage = 1;
+            renderLogsTable();
+        }
+
+        function changeLogPerPage(val) {
+            if (val === 'all') {
+                logFilterState.showAll = true;
+                logFilterState.perPage = 'all';
+            } else {
+                logFilterState.showAll = false;
+                logFilterState.perPage = parseInt(val, 10) || 15;
+            }
+            logFilterState.currentPage = 1;
+            renderLogsTable();
+        }
+
+        function toggleLogShowAll() {
+            logFilterState.showAll = !logFilterState.showAll;
+            const selectEl = document.getElementById('logPerPageSelect');
+            if (logFilterState.showAll) {
+                logFilterState.perPage = 'all';
+                if (selectEl) selectEl.value = 'all';
+            } else {
+                logFilterState.perPage = 15;
+                if (selectEl) selectEl.value = '15';
+            }
+            logFilterState.currentPage = 1;
+            renderLogsTable();
+        }
+
+        function resetLogFilters() {
+            logFilterState = {
+                search: '',
+                activity: '',
+                perPage: 15,
+                currentPage: 1,
+                showAll: false
+            };
+            const sInput = document.getElementById('logSearchInput');
+            if (sInput) sInput.value = '';
+            const aFilter = document.getElementById('logActivityFilter');
+            if (aFilter) aFilter.value = '';
+            const ppSelect = document.getElementById('logPerPageSelect');
+            if (ppSelect) ppSelect.value = '15';
+            renderLogsTable();
+        }
+
+        function goToLogPage(page) {
+            logFilterState.currentPage = page;
+            renderLogsTable();
+        }
+
+        function formatLogTime(created_at, created_at_formatted) {
+            if (created_at_formatted) return created_at_formatted;
+            if (!created_at) return '-';
+            const cleaned = String(created_at).trim();
+            const parts = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+            if (parts) {
+                return `${parts[3]}/${parts[2]}/${parts[1]} ${parts[4]}:${parts[5]}:${parts[6]} WITA`;
+            }
+            return cleaned + ' WITA';
+        }
+
+        function renderLogsTable() {
+            const tbody = document.getElementById('logsTableBody');
+            if (!tbody) return;
+
+            const search = (logFilterState.search || '').toLowerCase();
+            const actFilter = logFilterState.activity;
+
+            const filtered = (rawLogsData || []).filter(l => {
+                if (actFilter && actFilter !== '' && actFilter !== 'all' && l.activity !== actFilter) {
+                    return false;
+                }
+                if (search) {
+                    const matchUser = (l.username || '').toLowerCase().includes(search);
+                    const matchName = (l.user_name || '').toLowerCase().includes(search);
+                    const matchAct = (l.activity || '').toLowerCase().includes(search);
+                    const matchDetail = (l.detail || '').toLowerCase().includes(search);
+                    const matchIp = (l.ip_address || '').toLowerCase().includes(search);
+                    if (!matchUser && !matchName && !matchAct && !matchDetail && !matchIp) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            const total = filtered.length;
+            const isAll = logFilterState.showAll || logFilterState.perPage === 'all';
+            const perPage = isAll ? Math.max(total, 1) : (parseInt(logFilterState.perPage, 10) || 15);
+            const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+            if (logFilterState.currentPage > totalPages) {
+                logFilterState.currentPage = totalPages;
+            }
+            const currentPage = logFilterState.currentPage;
+
+            const startIndex = (currentPage - 1) * perPage;
+            const pageData = isAll ? filtered : filtered.slice(startIndex, startIndex + perPage);
+
+            const from = total > 0 ? (startIndex + 1) : 0;
+            const to = isAll ? total : Math.min(startIndex + perPage, total);
+
+            // Summary
+            const fromEl = document.getElementById('logsFrom');
+            const toEl = document.getElementById('logsTo');
+            const totalEl = document.getElementById('logsTotal');
+            if (fromEl) fromEl.textContent = from;
+            if (toEl) toEl.textContent = to;
+            if (totalEl) totalEl.textContent = total;
+
+            // Show All Button text & style
+            const btnShowAll = document.getElementById('btnLogShowAll');
+            if (btnShowAll) {
+                if (isAll) {
+                    btnShowAll.textContent = 'Mode Paginasi';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-xs font-bold shadow-2xs transition-all cursor-pointer';
+                } else {
+                    btnShowAll.textContent = 'Tampilkan Semua';
+                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer';
+                }
+            }
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Tidak ada riwayat aktivitas ditemukan sesuai filter.</span>
+                                <button type="button" onclick="resetLogFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer mt-1">Reset Filter</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = pageData.map(l => {
+                    const timeFormatted = formatLogTime(l.created_at, l.created_at_formatted);
+                    const totalBiayaFormatted = (l.total_biaya && Number(l.total_biaya) > 0)
+                        ? 'Rp ' + Number(l.total_biaya).toLocaleString('id-ID')
+                        : '<span class="text-slate-400 font-normal">-</span>';
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
+                                ${timeFormatted}
+                            </td>
+                            <td class="px-4 py-3" data-label="User">
+                                <span class="font-mono font-bold text-slate-900 block">${l.username || '-'}</span>
+                                <span class="text-[10px] text-slate-500">${l.user_name || '-'}</span>
+                            </td>
+                            <td class="px-4 py-3" data-label="Aktivitas">
+                                <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                    ${l.activity || '-'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="${l.detail || ''}">
+                                ${l.detail || '-'}
+                            </td>
+                            <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
+                                ${totalBiayaFormatted}
+                            </td>
+                            <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
+                                ${l.ip_address || '-'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            renderLogsPagination(totalPages, currentPage, isAll);
+        }
+
+        function renderLogsPagination(totalPages, currentPage, isAll) {
+            const container = document.getElementById('logsPagination');
+            if (!container) return;
+
+            if (isAll || totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            // Prev Button
+            html += `
+                <button type="button" onclick="goToLogPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    &laquo; Prev
+                </button>
+            `;
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (totalPages > 7) {
+                    if (i !== 1 && i !== totalPages && Math.abs(i - currentPage) > 2) {
+                        if (i === 2 || i === totalPages - 1) {
+                            html += `<span class="px-1 text-slate-400">...</span>`;
+                        }
+                        continue;
+                    }
+                }
+                const isActive = i === currentPage;
+                html += `
+                    <button type="button" onclick="goToLogPage(${i})"
+                            class="px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            // Next Button
+            html += `
+                <button type="button" onclick="goToLogPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}
+                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
+                    Next &raquo;
+                </button>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function fetchLogs(isBackground = false) {
+            renderLogsTable();
+            // Optional background refresh
+            fetch('{{ route("admin.activity_logs", [], false) }}?per_page=100', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success' && res.data) {
+                    const newLogs = Array.isArray(res.data) ? res.data : (res.data.data || []);
+                    if (newLogs.length > 0) {
+                        rawLogsData = newLogs;
+                        renderLogsTable();
+                    }
+                }
+            })
+            .catch(() => {});
+        }
+
         // Set default active menu & inisialisasi tabel
         switchSidebarMenu('users');
-        fetchLogs();
+        renderLogsTable();
 
         // Toggle Switch Label Updater
         function updateToggleLabel(checkbox) {
@@ -2456,234 +2719,6 @@
                 }
             })
             .catch(() => alert('Terjadi kendala jaringan.'));
-        }
-
-        // =====================================================================
-        // RIWAYAT AKTIVITAS (AUDIT LOGS) AJAX FILTER, PAGINASI & TAMPILKAN SEMUA
-        // =====================================================================
-        let logFilterState = {
-            search: '',
-            activity: '',
-            perPage: 15,
-            currentPage: 1,
-            showAll: false
-        };
-
-        let logSearchTimer = null;
-        function debounceLogSearch(e) {
-            clearTimeout(logSearchTimer);
-            logSearchTimer = setTimeout(() => {
-                logFilterState.search = e.target.value.trim();
-                logFilterState.currentPage = 1;
-                fetchLogs();
-            }, 300);
-        }
-
-        function handleLogActivityChange(val) {
-            logFilterState.activity = val;
-            logFilterState.currentPage = 1;
-            fetchLogs();
-        }
-
-        function changeLogPerPage(val) {
-            if (val === 'all') {
-                logFilterState.showAll = true;
-                logFilterState.perPage = 'all';
-            } else {
-                logFilterState.showAll = false;
-                logFilterState.perPage = parseInt(val, 10) || 15;
-            }
-            logFilterState.currentPage = 1;
-            fetchLogs();
-        }
-
-        function toggleLogShowAll() {
-            logFilterState.showAll = !logFilterState.showAll;
-            const selectEl = document.getElementById('logPerPageSelect');
-            if (logFilterState.showAll) {
-                logFilterState.perPage = 'all';
-                if (selectEl) selectEl.value = 'all';
-            } else {
-                logFilterState.perPage = 15;
-                if (selectEl) selectEl.value = '15';
-            }
-            logFilterState.currentPage = 1;
-            fetchLogs();
-        }
-
-        function resetLogFilters() {
-            logFilterState = {
-                search: '',
-                activity: '',
-                perPage: 15,
-                currentPage: 1,
-                showAll: false
-            };
-            const sInput = document.getElementById('logSearchInput');
-            if (sInput) sInput.value = '';
-            const aFilter = document.getElementById('logActivityFilter');
-            if (aFilter) aFilter.value = '';
-            const ppSelect = document.getElementById('logPerPageSelect');
-            if (ppSelect) ppSelect.value = '15';
-            fetchLogs();
-        }
-
-        function goToLogPage(page) {
-            logFilterState.currentPage = page;
-            fetchLogs();
-        }
-
-        function fetchLogs() {
-            const tbody = document.getElementById('logsTableBody');
-            if (!tbody) return;
-
-            const params = new URLSearchParams();
-            if (logFilterState.search) params.append('q', logFilterState.search);
-            if (logFilterState.activity) params.append('activity', logFilterState.activity);
-            if (logFilterState.showAll) {
-                params.append('show_all', '1');
-            } else {
-                params.append('per_page', logFilterState.perPage);
-                params.append('page', logFilterState.currentPage);
-            }
-
-            fetch(`{{ route("admin.activity_logs") }}?${params.toString()}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.status === 'success') {
-                        renderLogs(res.data);
-                    }
-                })
-                .catch(() => {
-                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-rose-500">Gagal memuat riwayat aktivitas. Silakan coba kembali.</td></tr>';
-                });
-        }
-
-        function renderLogs(logData) {
-            const tbody = document.getElementById('logsTableBody');
-            const logs = logData.data || [];
-            const total = logData.total !== undefined ? logData.total : logs.length;
-            const from = logData.from !== undefined ? (logData.from || (logs.length > 0 ? 1 : 0)) : (logs.length > 0 ? 1 : 0);
-            const to = logData.to !== undefined ? logData.to : logs.length;
-            const lastPage = logData.last_page || 1;
-            const currentPage = logData.current_page || 1;
-            const isAll = logFilterState.showAll || logFilterState.perPage === 'all';
-
-            // Summary
-            const fromEl = document.getElementById('logsFrom');
-            const toEl = document.getElementById('logsTo');
-            const totalEl = document.getElementById('logsTotal');
-            if (fromEl) fromEl.textContent = from;
-            if (toEl) toEl.textContent = to;
-            if (totalEl) totalEl.textContent = total;
-
-            // Show All Button text & style
-            const btnShowAll = document.getElementById('btnLogShowAll');
-            if (btnShowAll) {
-                if (isAll) {
-                    btnShowAll.textContent = 'Mode Paginasi';
-                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-blue-300 bg-blue-50 text-blue-700 text-xs font-bold shadow-2xs transition-all cursor-pointer';
-                } else {
-                    btnShowAll.textContent = 'Tampilkan Semua';
-                    btnShowAll.className = 'px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer';
-                }
-            }
-
-            if (!logs || logs.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="px-4 py-10 text-center text-slate-400">
-                            <div class="flex flex-col items-center justify-center gap-2">
-                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span>Tidak ada riwayat aktivitas ditemukan sesuai filter.</span>
-                                <button type="button" onclick="resetLogFilters()" class="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer mt-1">Reset Filter</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            } else {
-                tbody.innerHTML = logs.map(l => {
-                    const timeFormatted = l.created_at_formatted || (new Date(l.created_at).toLocaleString('id-ID') + ' WITA');
-                    const totalBiayaFormatted = (l.total_biaya && Number(l.total_biaya) > 0)
-                        ? 'Rp ' + Number(l.total_biaya).toLocaleString('id-ID')
-                        : '<span class="text-slate-400 font-normal">-</span>';
-
-                    return `
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-4 py-3 text-slate-500 font-mono text-[11px] whitespace-nowrap" data-label="Waktu">
-                                ${timeFormatted}
-                            </td>
-                            <td class="px-4 py-3" data-label="User">
-                                <span class="font-mono font-bold text-slate-900 block">${l.username}</span>
-                                <span class="text-[10px] text-slate-500">${l.user_name || '-'}</span>
-                            </td>
-                            <td class="px-4 py-3" data-label="Aktivitas">
-                                <span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    ${l.activity}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-slate-700 font-medium max-w-xs truncate" data-label="Detail" data-stacked="true" title="${l.detail || ''}">
-                                ${l.detail || '-'}
-                            </td>
-                            <td class="px-4 py-3 font-mono font-bold text-emerald-700 text-xs whitespace-nowrap" data-label="Total Biaya">
-                                ${totalBiayaFormatted}
-                            </td>
-                            <td class="px-4 py-3 font-mono text-slate-500 text-[11px]" data-label="IP Address">
-                                ${l.ip_address || '-'}
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-
-            renderLogsPagination(lastPage, currentPage, isAll);
-        }
-
-        function renderLogsPagination(lastPage, currentPage, isAll) {
-            const container = document.getElementById('logsPagination');
-            if (!container) return;
-
-            if (isAll || lastPage <= 1) {
-                container.innerHTML = '';
-                return;
-            }
-
-            let html = '';
-            // Prev Button
-            html += `
-                <button type="button" onclick="goToLogPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}
-                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-                    &laquo; Prev
-                </button>
-            `;
-
-            for (let i = 1; i <= lastPage; i++) {
-                if (lastPage > 7) {
-                    if (i !== 1 && i !== lastPage && Math.abs(i - currentPage) > 2) {
-                        if (i === 2 || i === lastPage - 1) {
-                            html += `<span class="px-1 text-slate-400">...</span>`;
-                        }
-                        continue;
-                    }
-                }
-                const isActive = i === currentPage;
-                html += `
-                    <button type="button" onclick="goToLogPage(${i})"
-                            class="px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}">
-                        ${i}
-                    </button>
-                `;
-            }
-
-            // Next Button
-            html += `
-                <button type="button" onclick="goToLogPage(${currentPage + 1})" ${currentPage >= lastPage ? 'disabled' : ''}
-                        class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-                    Next &raquo;
-                </button>
-            `;
-
-            container.innerHTML = html;
         }
 
         // NJKB Search & Modal
