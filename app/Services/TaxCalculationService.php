@@ -315,6 +315,10 @@ class TaxCalculationService
 
         if (strpos($jenisUpper, 'SEPEDA MOTOR') !== false || strpos($kJrUpper, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250)) {
             return $cfgMotor;
+        } elseif (strpos($jenisUpper, 'MICROBUS') !== false) {
+            return $cfgMicro;
+        } elseif (strpos($jenisUpper, 'MINIBUS') !== false) {
+            return $cfgMinibus;
         } elseif (strpos($jenisUpper, 'TRUCK') !== false) {
             return $cfgTruck;
         } elseif (strpos($jenisUpper, 'BUS') !== false) {
@@ -323,14 +327,10 @@ class TaxCalculationService
             return $cfgPick;
         } elseif (strpos($jenisUpper, 'BLIND VAN') !== false) {
             return $cfgVan;
-        } elseif (strpos($jenisUpper, 'MICROBUS') !== false) {
-            return $cfgMicro;
         } elseif (strpos($jenisUpper, 'STATION WAGON') !== false) {
             return $cfgWagon;
         } elseif (strpos($jenisUpper, 'JEEP') !== false) {
             return $cfgJeep;
-        } elseif (strpos($jenisUpper, 'MINIBUS') !== false) {
-            return $cfgMinibus;
         } elseif (strpos($jenisUpper, 'SEDAN') !== false) {
             return $cfgSedan;
         }
@@ -456,100 +456,190 @@ class TaxCalculationService
         $alamat      = trim((string)($apiData['Alamat'] ?? '-'));
         $uptAsal     = trim((string)($apiData['UPT_ASAL'] ?? ''));
         $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
-        $noRangka    = trim((string)($apiData['NoRangka'] ?? ''));
+        $noRangka    = trim((string)($apiData['NoRangka'] ?? $apiData['no_rangka'] ?? $apiData['rangka'] ?? ''));
 
-        // 3. Cari NJKB & Bobot (Prioritas 1: API Cadangan jika ada, Prioritas 2: API cek_pajak, Prioritas 3: Database Lokal)
         $presetNjkb = !empty($apiData['njkb_api']) ? (float)$apiData['njkb_api'] : null;
         $presetBobot = !empty($apiData['bobot_api']) ? (float)$apiData['bobot_api'] : null;
-        $njkbInfo = $this->findNjkb($merk, $tipe, $tahun, $nopolClean, $noRangka, $jenisKend, $kJr, $isiCylinder, $presetNjkb, $presetBobot);
-        $njkb = $njkbInfo['njkb'];
-        $bobot = $njkbInfo['bobot'];
-        $sumberNjkb = $njkbInfo['sumber'];
-        $isNjkbEstimasi = $njkbInfo['is_estimasi'];
-        $isFromApi = ($sumberNjkb === 'API Realtime (cek_pajak)');
 
-        // Safety net kategori jika NJKB <= 0
-        if ($njkb <= 0.0) {
-            $isNjkbEstimasi = true;
-            $isMotorCheck = (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250));
-            if ($isMotorCheck) {
-                $njkb = 14000000.0; $bobot = 1.0; $sumberNjkb = 'Estimasi Standar Sepeda Motor';
-            } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
-                $njkb = 250000000.0; $bobot = 1.3; $sumberNjkb = 'Estimasi Standar Truk/Bus';
-            } elseif (strpos($jenisKend, 'PICK') !== false) {
-                $njkb = 120000000.0; $bobot = 1.085; $sumberNjkb = 'Estimasi Standar Pick-up';
-            } else {
-                $njkb = 160000000.0; $bobot = 1.025; $sumberNjkb = 'Estimasi Standar Minibus/Sedan';
-            }
-        }
+        // 3. Periksa Data Penetapan Resmi Real-Time via API BPAD NTT Bank NTT (cek_pajakk)
+        $apiTaxDetail = (!empty($noRangka) && function_exists('ambilDataCekPajakApi')) ? \ambilDataCekPajakApi($nopolClean, $noRangka) : null;
 
-        // 4. NJUB (Nilai Jual Ubah Bentuk) jika NJKB dari database lokal
-        $njub = 0;
-        if (!$isFromApi && $rubahBentuk !== '' && $rubahBentuk !== '-' && $conn) {
-            $tahunCari = $tahun < 2006 ? 2006 : $tahun;
-            $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
-            if ($stmtNjub) {
-                $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
-                $stmtNjub->execute();
-                $rowNjub = $stmtNjub->get_result()->fetch_assoc();
-                $stmtNjub->close();
-                if ($rowNjub) {
-                    $njub = (float)$rowNjub['nilai'];
+        if ($apiTaxDetail !== null && is_array($apiTaxDetail) && isset($apiTaxDetail['pkb']) && (int)$apiTaxDetail['pkb'] > 0) {
+            $njkb = (float)($apiTaxDetail['njkb'] ?? $presetNjkb ?? 0);
+            $bobot = (float)($presetBobot ?: $this->resolveBobot(0.0, $jenisKend, $kJr, $isiCylinder));
+            $sumberNjkb = 'API Realtime BPAD NTT (cek_pajak)';
+            $isNjkbEstimasi = false;
+            $isFromApi = true;
+            $dpPkb = $njkb * $bobot;
+
+            // Rincian resmi langsung dari penetapan BPAD NTT Bank NTT
+            $pkbBerjalan  = (int)$apiTaxDetail['pkb'];
+            $pkbTunggakan = (int)($apiTaxDetail['tpkb'] ?? 0);
+            $pkbTotal     = $pkbBerjalan + $pkbTunggakan;
+            $opsenPkb     = (int)($apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalan * 0.66)));
+            $dendaPkb     = (int)($apiTaxDetail['dpkb'] ?? 0);
+            $dendaOpsenPkb= (int)($apiTaxDetail['opsen_dpkb'] ?? 0);
+
+            $swdklljBerjalan  = (int)($apiTaxDetail['swdkllj'] ?? 143000);
+            $swdklljTunggakan = (int)($apiTaxDetail['tswdkllj'] ?? 0);
+            $swdkllj          = $swdklljBerjalan + $swdklljTunggakan;
+            $dendaSwdkllj     = (int)($apiTaxDetail['dswdkllj'] ?? 0);
+
+            $biayaStnk = (int)($apiTaxDetail['biaya_stnk'] ?? 0);
+            $biayaTnkb = (int)($apiTaxDetail['biaya_tnkb'] ?? 0);
+            $stnkData = [
+                'wajib'      => ($biayaStnk > 0 || $biayaTnkb > 0),
+                'biaya_stnk' => $biayaStnk,
+                'biaya_tnkb' => $biayaTnkb,
+                'total'      => $biayaStnk + $biayaTnkb,
+                'info'       => ($biayaStnk > 0) ? 'Masa Berlaku STNK Habis' : 'STNK Masih Berlaku',
+                'keterangan' => ($biayaStnk > 0) ? 'Masa Berlaku STNK Habis' : 'STNK Masih Berlaku'
+            ];
+
+            $totalPajak = (int)($apiTaxDetail['total_bayar'] ?? ($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']));
+            $totalByrNormal = (int)($apiTaxDetail['total_byr'] ?? $totalPajak);
+            $sumPkbNor = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
+
+            $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
+            $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
+
+            $tahunTunggakan = !empty($sdNotice) && \buatTanggal($sdNotice) < new \DateTime('today') ? max(0, (int)\buatTanggal($sdNotice)->diff(new \DateTime('today'))->y) : 0;
+            $tahunBerjalan  = 1;
+            $jumlahTahunPajak = $tahunTunggakan + 1;
+
+            $pkbData = [
+                'pkb_berjalan'               => $pkbBerjalan,
+                'pkb_berjalan_kotor'         => (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan),
+                'diskon_pkb_berjalan'        => max(0, (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan) - $pkbBerjalan),
+                'pkb_tunggakan'              => $pkbTunggakan,
+                'pkb_tunggakan_kotor'        => max(0, $sumPkbNor - (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan)),
+                'diskon_pkb_tunggakan'       => max(0, $sumPkbNor - (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan)),
+                'pkb_total'                  => $pkbTotal,
+                'opsen_pkb'                  => $opsenPkb,
+                'opsen_pkb_berjalan'         => $opsenPkb,
+                'opsen_pkb_tunggakan'        => 0,
+                'denda_pkb'                  => $dendaPkb,
+                'denda_pkb_total'            => $dendaPkb,
+                'denda_pkb_berjalan'         => 0,
+                'denda_pkb_tunggakan'        => 0,
+                'diskon_denda_pkb_berjalan'  => 0,
+                'diskon_denda_pkb_tunggakan' => 0,
+                'denda_opsen'                => $dendaOpsenPkb,
+                'denda_opsen_berjalan'       => 0,
+                'denda_opsen_tunggakan'      => 0,
+                'tahun_berjalan'             => $tahunBerjalan,
+                'tahun_tunggakan'            => $tahunTunggakan,
+                'tahun_total'                => $jumlahTahunPajak,
+            ];
+
+            $swdklljData = [
+                'golongan'               => ($isiCylinder <= 1600 && strpos($jenisKend, 'MOTOR') === false) ? 'DP' : 'EP',
+                'tarif'                  => ($isiCylinder <= 1600 && strpos($jenisKend, 'MOTOR') === false) ? 140000 : 150000,
+                'admin'                  => 3000,
+                'jumlah_tahun'           => $jumlahTahunPajak,
+                'total'                  => $swdkllj,
+                'pokok_berjalan'         => $swdklljBerjalan,
+                'pokok_tunggakan'        => $swdklljTunggakan,
+                'denda'                  => $dendaSwdkllj,
+                'denda_berjalan'         => $dendaSwdkllj,
+                'denda_tunggakan'        => 0,
+                'diskon_denda_berjalan'  => 0,
+                'diskon_denda_tunggakan' => 0,
+            ];
+        } else {
+            // Jalankan engine kalkulasi lokal native jika API cek_pajakk tidak mengembalikan data penetapan
+            $presetNjkb = !empty($apiData['njkb_api']) ? (float)$apiData['njkb_api'] : null;
+            $presetBobot = !empty($apiData['bobot_api']) ? (float)$apiData['bobot_api'] : null;
+            $njkbInfo = $this->findNjkb($merk, $tipe, $tahun, $nopolClean, $noRangka, $jenisKend, $kJr, $isiCylinder, $presetNjkb, $presetBobot);
+            $njkb = $njkbInfo['njkb'];
+            $bobot = $njkbInfo['bobot'];
+            $sumberNjkb = $njkbInfo['sumber'];
+            $isNjkbEstimasi = $njkbInfo['is_estimasi'];
+            $isFromApi = ($sumberNjkb === 'API Realtime (cek_pajak)');
+
+            // Safety net kategori jika NJKB <= 0
+            if ($njkb <= 0.0) {
+                $isNjkbEstimasi = true;
+                $isMotorCheck = (strpos($jenisKend, 'SEPEDA MOTOR') !== false || strpos($kJr, 'SEPEDA MOTOR') !== false || ($isiCylinder > 0 && $isiCylinder <= 250));
+                if ($isMotorCheck) {
+                    $njkb = 14000000.0; $bobot = 1.0; $sumberNjkb = 'Estimasi Standar Sepeda Motor';
+                } elseif (strpos($jenisKend, 'TRUCK') !== false || strpos($jenisKend, 'BUS') !== false) {
+                    $njkb = 250000000.0; $bobot = 1.3; $sumberNjkb = 'Estimasi Standar Truk/Bus';
+                } elseif (strpos($jenisKend, 'PICK') !== false) {
+                    $njkb = 120000000.0; $bobot = 1.085; $sumberNjkb = 'Estimasi Standar Pick-up';
+                } else {
+                    $njkb = 160000000.0; $bobot = 1.025; $sumberNjkb = 'Estimasi Standar Minibus/Sedan';
                 }
             }
+
+            // NJUB (Nilai Jual Ubah Bentuk) jika NJKB dari database lokal
+            $njub = 0;
+            if (!$isFromApi && $rubahBentuk !== '' && $rubahBentuk !== '-' && $conn) {
+                $tahunCari = $tahun < 2006 ? 2006 : $tahun;
+                $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
+                if ($stmtNjub) {
+                    $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
+                    $stmtNjub->execute();
+                    $rowNjub = $stmtNjub->get_result()->fetch_assoc();
+                    $stmtNjub->close();
+                    if ($rowNjub) {
+                        $njub = (float)$rowNjub['nilai'];
+                    }
+                }
+            }
+
+            $dpPkb = ($njkb + $njub) * $bobot;
+
+            // Hitung PKB Lengkap menggunakan fungsi native hitungPkbLengkap
+            $pkbData = \hitungPkbLengkap(
+                $dpPkb,
+                $kGuna,
+                $sdNotice,
+                [
+                    'alamat'         => $alamat,
+                    'nopol'          => $nopolClean,
+                    'is_mutasi'      => $isMutasi,
+                    'is_disabilitas' => $isDisabilitas,
+                    'is_karwas'      => $isKarwas,
+                    'is_sosial'      => $isSosial,
+                    'is_ambulance'   => $isAmbulance,
+                    'jenis'          => $jenisKend,
+                    'type'           => $tipe,
+                    'rubah_bentuk'   => $rubahBentuk,
+                    'k_jr'           => $kJr,
+                    'upt_asal'       => $uptAsal
+                ]
+            );
+
+            // Hitung SWDKLLJ menggunakan fungsi native hitungSwdkllj
+            $swdklljData = \hitungSwdkllj($jenisKend, $kJr, $isiCylinder, $kGuna, $sdNotice);
+            $swdkllj = (int)$swdklljData['total'];
+            $dendaSwdkllj = (int)$swdklljData['denda'];
+
+            // Hitung Biaya STNK & TNKB menggunakan fungsi native hitungBiayaStnk
+            $stnkData = \hitungBiayaStnk($sdStnk, $jenisKend, $kJr);
+
+            // Agregasi Rincian & Total
+            $tahunTunggakan = (int)($pkbData['tahun_tunggakan'] ?? 0);
+            $tahunBerjalan  = (int)($pkbData['tahun_berjalan'] ?? 1);
+            $jumlahTahunPajak = max(1, (int)($pkbData['tahun_total'] ?? 1));
+
+            $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
+            $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
+
+            $pkbBerjalan = (int)$pkbData['pkb_berjalan'];
+            $pkbTunggakan = (int)$pkbData['pkb_tunggakan'];
+            $pkbTotal = (int)$pkbData['pkb_total'];
+
+            $dendaPkb = (int)$pkbData['denda_pkb_total'];
+            $opsenPkb = (int)$pkbData['opsen_pkb'];
+            $dendaOpsenPkb = (int)$pkbData['denda_opsen'];
+
+            $biayaStnk = (int)$stnkData['biaya_stnk'];
+            $biayaTnkb = (int)$stnkData['biaya_tnkb'];
+
+            $totalPajak = $pkbTotal + $dendaPkb + $opsenPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total'];
         }
-
-        $dpPkb = ($njkb + $njub) * $bobot;
-
-        // 5. Hitung PKB Lengkap menggunakan fungsi native hitungPkbLengkap
-        $pkbData = \hitungPkbLengkap(
-            $dpPkb,
-            $kGuna,
-            $sdNotice,
-            [
-                'alamat'         => $alamat,
-                'nopol'          => $nopolClean,
-                'is_mutasi'      => $isMutasi,
-                'is_disabilitas' => $isDisabilitas,
-                'is_karwas'      => $isKarwas,
-                'is_sosial'      => $isSosial,
-                'is_ambulance'   => $isAmbulance,
-                'jenis'          => $jenisKend,
-                'type'           => $tipe,
-                'rubah_bentuk'   => $rubahBentuk,
-                'k_jr'           => $kJr,
-                'upt_asal'       => $uptAsal
-            ]
-        );
-
-        // 6. Hitung SWDKLLJ menggunakan fungsi native hitungSwdkllj
-        $swdklljData = \hitungSwdkllj($jenisKend, $kJr, $isiCylinder, $kGuna, $sdNotice);
-        $swdkllj = (int)$swdklljData['total'];
-        $dendaSwdkllj = (int)$swdklljData['denda'];
-
-        // 7. Hitung Biaya STNK & TNKB menggunakan fungsi native hitungBiayaStnk
-        $stnkData = \hitungBiayaStnk($sdStnk, $jenisKend, $kJr);
-
-        // 8. Agregasi Rincian & Total
-        $tahunTunggakan = (int)($pkbData['tahun_tunggakan'] ?? 0);
-        $tahunBerjalan  = (int)($pkbData['tahun_berjalan'] ?? 1);
-        $jumlahTahunPajak = max(1, (int)($pkbData['tahun_total'] ?? 1));
-
-        $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
-        $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
-
-        $pkbBerjalan = (int)$pkbData['pkb_berjalan'];
-        $pkbTunggakan = (int)$pkbData['pkb_tunggakan'];
-        $pkbTotal = (int)$pkbData['pkb_total'];
-
-        $dendaPkb = (int)$pkbData['denda_pkb_total'];
-        $opsenPkb = (int)$pkbData['opsen_pkb'];
-        $dendaOpsenPkb = (int)$pkbData['denda_opsen'];
-
-        $biayaStnk = (int)$stnkData['biaya_stnk'];
-        $biayaTnkb = (int)$stnkData['biaya_tnkb'];
-
-        $totalPajak = $pkbTotal + $dendaPkb + $opsenPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total'];
 
         // Cek masa aktif pajak berdasarkan SD Notice (lebih dari 90 hari)
         $today = new \DateTime('today');

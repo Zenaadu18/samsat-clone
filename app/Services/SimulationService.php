@@ -308,7 +308,7 @@ class SimulationService
         /* ====================================================================
          * 2. PENETAPAN PERGUB 64 (RANPERGUB NOV - DES 2026)
          * ==================================================================== */
-        $isOnline = in_array($kanalBayar, ['online', 'signal', 'mobile_banking', 'atm']);
+        $isOnline = in_array($kanalBayar, ['online', 'signal', 'mobile_banking', 'atm', 'bank_ntt', 'qris']) || empty($kanalBayar);
 
         $isTaatPajak = (!$isMenunggak && $noticeDate && $simDate <= $noticeDate && $selisihHari <= 90);
         $isTerlambat = (!$isMenunggak && $noticeDate && $simDate > $noticeDate);
@@ -376,9 +376,11 @@ class SimulationService
         $tarifBerjalan = \getTarifPkb($kGuna, $isBerjalanTarifBaru);
 
         $ranPkBerjalanKotor = round($ranDpPkb * $tarifBerjalan);
-        $ranDiskonBerjalanRp = round($ranPkBerjalanKotor * ($ranDiskonPokokBerjalanPct / 100));
+        $ranDiskonBerjalanRp = (int)floor($ranPkBerjalanKotor * ($ranDiskonPokokBerjalanPct / 100));
         $ranPkBerjalanNet = $ranPkBerjalanKotor - $ranDiskonBerjalanRp;
-        $ranOpsenBerjalan = (int)floor($ranPkBerjalanNet * 0.66);
+        $ranOpsenKotor = $isBerjalanTarifBaru ? (int)floor($ranPkBerjalanKotor * 0.66) : 0;
+        $ranDiskonOpsenRp = (int)round($ranOpsenKotor * ($ranDiskonPokokBerjalanPct / 100));
+        $ranOpsenBerjalan = $ranOpsenKotor - $ranDiskonOpsenRp;
 
         // Point 8b & 9b: PKB masa Tunggakan dihapus 100%
         $ranPkTunggakanNet = 0;

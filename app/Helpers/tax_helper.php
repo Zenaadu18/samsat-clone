@@ -387,6 +387,12 @@ function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $
                             $persenDiskonTahun = (float)($dbKonfigurasi['amnesti_diskon_pkb_awal_r4_90hr'] ?? 0.10);
                         }
                     }
+                } else {
+                    // Insentif Kanal Digital / Ranpergub Amnesti NTT untuk tahun berjalan
+                    $isOnlineChannel = !isset($kendaraan['is_online']) || !empty($kendaraan['is_online']);
+                    if ($isOnlineChannel) {
+                        $persenDiskonTahun = $isRoda23 ? 0.05 : 0.02;
+                    }
                 }
             } else {
                 // PENERAPAN DISKON TUNGGAKAN (Sesuai Pergub Tahap III: Bebas Tunggakan 100%)
@@ -656,7 +662,7 @@ function getTarifSwdkllj(
     if (!empty($dbKlasifikasiKendaraan) && is_iterable($dbKlasifikasiKendaraan)) {
         foreach ($dbKlasifikasiKendaraan as $klas) {
             if (!empty($klas['keyword']) && strpos($jenisUpper, $klas['keyword']) !== false) {
-                $detectedJenis = $klas['jenis'] ?? null;
+                $detectedJenis = $klas['jenis_kend'] ?? $klas['jenis'] ?? null;
                 break;
             }
         }
@@ -1009,8 +1015,31 @@ function cariNjkbData(?mysqli $conn, string $merk, string $tipe, int $tahun): ar
     $merkTrim = trim($merk);
     $tipeTrim = trim($tipe);
 
-    if (!$conn || empty($tipeTrim)) {
+    if (empty($tipeTrim)) {
         return $hasil;
+    }
+
+    if (!$conn || !($conn instanceof \mysqli) || $conn->connect_error) {
+        global $conn;
+        if (!$conn || !($conn instanceof \mysqli) || $conn->connect_error) {
+            require_once app_path('Helpers/db.php');
+        }
+    }
+
+    $merkNorm = strtoupper($merkTrim);
+    $merkAliases = [$merkTrim];
+    if (strpos($merkNorm, 'MITSHUBISHI') !== false || strpos($merkNorm, 'MITSUBISHI') !== false) {
+        $merkAliases = ['MITSUBISHI', 'MITSHUBISHI'];
+    } elseif (strpos($merkNorm, 'MERCEDES') !== false || strpos($merkNorm, 'MERCY') !== false) {
+        $merkAliases = ['MERCEDES', 'MERCEDES-BENZ', 'MERCEDES BENZ', 'MERCY'];
+    } elseif (strpos($merkNorm, 'HONDA') !== false) {
+        $merkAliases = ['HONDA', 'H O N D A'];
+    } elseif (strpos($merkNorm, 'TOYOTA') !== false) {
+        $merkAliases = ['TOYOTA', 'T O Y O T A'];
+    } elseif (strpos($merkNorm, 'DAIHATSU') !== false) {
+        $merkAliases = ['DAIHATSU', 'D A I H A T S U'];
+    } elseif (strpos($merkNorm, 'SUZUKI') !== false) {
+        $merkAliases = ['SUZUKI', 'S U Z U K I'];
     }
 
     $merkNoSpace = preg_replace('/\s+/', '', $merkTrim);
@@ -1031,235 +1060,301 @@ function cariNjkbData(?mysqli $conn, string $merk, string $tipe, int $tahun): ar
     $mLikeNoSpace = '%' . $merkNoSpace . '%';
     $tLikeNoSpace = '%' . $tipeNoSpace . '%';
 
-    // Level 1: Exact Match As-Is (Merk + Tipe + Tahun)
-    $stmt = $conn->prepare(
-        'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data WHERE merk = ? AND tipe = ? AND tahun_buat = ? LIMIT 1'
-    );
-    if ($stmt) {
-        $stmt->bind_param('ssi', $merkTrim, $tipeTrim, $tahun);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        if ($row) {
-            return [
-                'njkb'        => (float)$row['njkb'],
-                'bobot'       => (float)$row['bobot'],
-                'tipe'        => $row['tipe'],
-                'merk'        => $row['merk'],
-                'tahun_buat'  => (int)$row['tahun_buat'],
-                'sumber'      => 'Exact Match: ' . $row['tipe'],
-                'is_estimasi' => false,
-            ];
+    if ($conn && $conn instanceof \mysqli && !$conn->connect_error) {
+        // Level 1: Exact Match As-Is (Merk + Tipe + Tahun) dengan toleransi alias merk
+        foreach ($merkAliases as $aliasMerk) {
+            $stmt = $conn->prepare(
+                'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data WHERE merk = ? AND tipe = ? AND tahun_buat = ? LIMIT 1'
+            );
+            if ($stmt) {
+                $stmt->bind_param('ssi', $aliasMerk, $tipeTrim, $tahun);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                if ($row) {
+                    return [
+                        'njkb'        => (float)$row['njkb'],
+                        'bobot'       => (float)$row['bobot'],
+                        'tipe'        => $row['tipe'],
+                        'merk'        => $row['merk'],
+                        'tahun_buat'  => (int)$row['tahun_buat'],
+                        'sumber'      => 'Exact Match: ' . $row['tipe'],
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
         }
-    }
 
-    // Level 2: Exact Match Tanpa Spasi (Tahun Sama) - Solusi KIJANG STANDARD vs KIJANGSTANDARD
-    $stmt2 = $conn->prepare(
-        "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-         WHERE REPLACE(merk, ' ', '') = ? 
-           AND REPLACE(tipe, ' ', '') = ? 
-           AND tahun_buat = ? 
-         LIMIT 1"
-    );
-    if ($stmt2) {
-        $stmt2->bind_param('ssi', $merkNoSpace, $tipeNoSpace, $tahun);
-        $stmt2->execute();
-        $row2 = $stmt2->get_result()->fetch_assoc();
-        $stmt2->close();
-        if ($row2) {
-            return [
-                'njkb'        => (float)$row2['njkb'],
-                'bobot'       => (float)$row2['bobot'],
-                'tipe'        => $row2['tipe'],
-                'merk'        => $row2['merk'],
-                'tahun_buat'  => (int)$row2['tahun_buat'],
-                'sumber'      => 'Exact Normalisasi Spasi: ' . $row2['tipe'],
-                'is_estimasi' => false,
-            ];
+        // Level 2: Exact Match Tanpa Spasi (Tahun Sama)
+        foreach ($merkAliases as $aliasMerk) {
+            $aliasNoSpace = preg_replace('/\s+/', '', $aliasMerk);
+            $stmt2 = $conn->prepare(
+                "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
+                 WHERE REPLACE(merk, ' ', '') = ? 
+                   AND REPLACE(tipe, ' ', '') = ? 
+                   AND tahun_buat = ? 
+                 LIMIT 1"
+            );
+            if ($stmt2) {
+                $stmt2->bind_param('ssi', $aliasNoSpace, $tipeNoSpace, $tahun);
+                $stmt2->execute();
+                $row2 = $stmt2->get_result()->fetch_assoc();
+                $stmt2->close();
+                if ($row2) {
+                    return [
+                        'njkb'        => (float)$row2['njkb'],
+                        'bobot'       => (float)$row2['bobot'],
+                        'tipe'        => $row2['tipe'],
+                        'merk'        => $row2['merk'],
+                        'tahun_buat'  => (int)$row2['tahun_buat'],
+                        'sumber'      => 'Exact Normalisasi Spasi: ' . $row2['tipe'],
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
         }
-    }
 
-    // Level 3: Token Berurutan / Sequential Wildcard (Tahun Sama) - Solusi AEV415P CL vs AEV415P7CL
-    if (!empty($seqPattern)) {
-        $stmt3 = $conn->prepare(
+        // Level 3: Token Berurutan / Sequential Wildcard (Tahun Sama)
+        if (!empty($seqPattern)) {
+            $stmt3 = $conn->prepare(
+                "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
+                 WHERE (merk LIKE ? OR REPLACE(merk, ' ', '') LIKE ?)
+                   AND REPLACE(tipe, ' ', '') LIKE ? 
+                   AND tahun_buat = ? 
+                 LIMIT 1"
+            );
+            if ($stmt3) {
+                $stmt3->bind_param('sssi', $mLike, $mLikeNoSpace, $seqPattern, $tahun);
+                $stmt3->execute();
+                $row3 = $stmt3->get_result()->fetch_assoc();
+                $stmt3->close();
+                if ($row3) {
+                    return [
+                        'njkb'        => (float)$row3['njkb'],
+                        'bobot'       => (float)$row3['bobot'],
+                        'tipe'        => $row3['tipe'],
+                        'merk'        => $row3['merk'],
+                        'tahun_buat'  => (int)$row3['tahun_buat'],
+                        'sumber'      => 'Pola Berurutan: ' . $row3['tipe'],
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
+        }
+
+        // Level 4: Full LIKE Tanpa Spasi (Tahun Sama)
+        $stmt4 = $conn->prepare(
             "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-             WHERE (merk LIKE ? OR REPLACE(merk, ' ', '') LIKE ?)
+             WHERE REPLACE(merk, ' ', '') LIKE ? 
                AND REPLACE(tipe, ' ', '') LIKE ? 
                AND tahun_buat = ? 
              LIMIT 1"
         );
-        if ($stmt3) {
-            $stmt3->bind_param('sssi', $mLike, $mLikeNoSpace, $seqPattern, $tahun);
-            $stmt3->execute();
-            $row3 = $stmt3->get_result()->fetch_assoc();
-            $stmt3->close();
-            if ($row3) {
+        if ($stmt4) {
+            $stmt4->bind_param('ssi', $mLikeNoSpace, $tLikeNoSpace, $tahun);
+            $stmt4->execute();
+            $row4 = $stmt4->get_result()->fetch_assoc();
+            $stmt4->close();
+            if ($row4) {
                 return [
-                    'njkb'        => (float)$row3['njkb'],
-                    'bobot'       => (float)$row3['bobot'],
-                    'tipe'        => $row3['tipe'],
-                    'merk'        => $row3['merk'],
-                    'tahun_buat'  => (int)$row3['tahun_buat'],
-                    'sumber'      => 'Pola Berurutan: ' . $row3['tipe'],
+                    'njkb'        => (float)$row4['njkb'],
+                    'bobot'       => (float)$row4['bobot'],
+                    'tipe'        => $row4['tipe'],
+                    'merk'        => $row4['merk'],
+                    'tahun_buat'  => (int)$row4['tahun_buat'],
+                    'sumber'      => 'Pola Spasi Sama: ' . $row4['tipe'],
                     'is_estimasi' => false,
                 ];
             }
         }
-    }
 
-    // Level 4: Full LIKE Tanpa Spasi (Tahun Sama)
-    $stmt4 = $conn->prepare(
-        "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-         WHERE REPLACE(merk, ' ', '') LIKE ? 
-           AND REPLACE(tipe, ' ', '') LIKE ? 
-           AND tahun_buat = ? 
-         LIMIT 1"
-    );
-    if ($stmt4) {
-        $stmt4->bind_param('ssi', $mLikeNoSpace, $tLikeNoSpace, $tahun);
-        $stmt4->execute();
-        $row4 = $stmt4->get_result()->fetch_assoc();
-        $stmt4->close();
-        if ($row4) {
-            return [
-                'njkb'        => (float)$row4['njkb'],
-                'bobot'       => (float)$row4['bobot'],
-                'tipe'        => $row4['tipe'],
-                'merk'        => $row4['merk'],
-                'tahun_buat'  => (int)$row4['tahun_buat'],
-                'sumber'      => 'Pola Spasi Sama: ' . $row4['tipe'],
-                'is_estimasi' => false,
-            ];
+        // Level 5: Token Berurutan / Sequential Wildcard (Tahun Terdekat)
+        if (!empty($seqPattern)) {
+            $stmt5 = $conn->prepare(
+                "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
+                 WHERE (merk LIKE ? OR REPLACE(merk, ' ', '') LIKE ?)
+                   AND REPLACE(tipe, ' ', '') LIKE ? 
+                 ORDER BY ABS(tahun_buat - ?) ASC 
+                 LIMIT 1"
+            );
+            if ($stmt5) {
+                $stmt5->bind_param('sssi', $mLike, $mLikeNoSpace, $seqPattern, $tahun);
+                $stmt5->execute();
+                $row5 = $stmt5->get_result()->fetch_assoc();
+                $stmt5->close();
+                if ($row5) {
+                    return [
+                        'njkb'        => (float)$row5['njkb'],
+                        'bobot'       => (float)$row5['bobot'],
+                        'tipe'        => $row5['tipe'],
+                        'merk'        => $row5['merk'],
+                        'tahun_buat'  => (int)$row5['tahun_buat'],
+                        'sumber'      => 'Pola Tahun Terdekat: ' . $row5['tipe'],
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
         }
-    }
 
-    // Level 5: Token Berurutan / Sequential Wildcard (Tahun Terdekat)
-    if (!empty($seqPattern)) {
-        $stmt5 = $conn->prepare(
+        // Level 6: Full LIKE Tanpa Spasi (Tahun Terdekat)
+        $stmt6 = $conn->prepare(
             "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-             WHERE (merk LIKE ? OR REPLACE(merk, ' ', '') LIKE ?)
+             WHERE REPLACE(merk, ' ', '') LIKE ? 
                AND REPLACE(tipe, ' ', '') LIKE ? 
              ORDER BY ABS(tahun_buat - ?) ASC 
              LIMIT 1"
         );
-        if ($stmt5) {
-            $stmt5->bind_param('sssi', $mLike, $mLikeNoSpace, $seqPattern, $tahun);
-            $stmt5->execute();
-            $row5 = $stmt5->get_result()->fetch_assoc();
-            $stmt5->close();
-            if ($row5) {
+        if ($stmt6) {
+            $stmt6->bind_param('ssi', $mLikeNoSpace, $tLikeNoSpace, $tahun);
+            $stmt6->execute();
+            $row6 = $stmt6->get_result()->fetch_assoc();
+            $stmt6->close();
+            if ($row6) {
                 return [
-                    'njkb'        => (float)$row5['njkb'],
-                    'bobot'       => (float)$row5['bobot'],
-                    'tipe'        => $row5['tipe'],
-                    'merk'        => $row5['merk'],
-                    'tahun_buat'  => (int)$row5['tahun_buat'],
-                    'sumber'      => 'Pola Tahun Terdekat: ' . $row5['tipe'],
+                    'njkb'        => (float)$row6['njkb'],
+                    'bobot'       => (float)$row6['bobot'],
+                    'tipe'        => $row6['tipe'],
+                    'merk'        => $row6['merk'],
+                    'tahun_buat'  => (int)$row6['tahun_buat'],
+                    'sumber'      => 'Tahun Terdekat: ' . $row6['tipe'],
                     'is_estimasi' => false,
                 ];
             }
         }
-    }
 
-    // Level 6: Full LIKE Tanpa Spasi (Tahun Terdekat)
-    $stmt6 = $conn->prepare(
-        "SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-         WHERE REPLACE(merk, ' ', '') LIKE ? 
-           AND REPLACE(tipe, ' ', '') LIKE ? 
-         ORDER BY ABS(tahun_buat - ?) ASC 
-         LIMIT 1"
-    );
-    if ($stmt6) {
-        $stmt6->bind_param('ssi', $mLikeNoSpace, $tLikeNoSpace, $tahun);
-        $stmt6->execute();
-        $row6 = $stmt6->get_result()->fetch_assoc();
-        $stmt6->close();
-        if ($row6) {
-            return [
-                'njkb'        => (float)$row6['njkb'],
-                'bobot'       => (float)$row6['bobot'],
-                'tipe'        => $row6['tipe'],
-                'merk'        => $row6['merk'],
-                'tahun_buat'  => (int)$row6['tahun_buat'],
-                'sumber'      => 'Tahun Terdekat: ' . $row6['tipe'],
-                'is_estimasi' => false,
-            ];
-        }
-    }
-
-    // Level 7: Kata Kunci Model Mandiri (Ekstraksi Kata Unik, urutkan dari yang terpanjang)
-    $keywords = [];
-    if (preg_match('/\((.*?)\)/', $tipeTrim, $matches)) {
-        $inside = trim($matches[1]);
-        $subParts = preg_split('/[\/\,\-\s]+/', $inside);
-        foreach ($subParts as $sp) {
-            $sp = trim($sp);
-            if (strlen($sp) >= 3 && !in_array($sp, $keywords, true)) {
-                $keywords[] = $sp;
+        // Level 7: Kata Kunci Model Mandiri (Ekstraksi Kata Unik, urutkan dari yang terpanjang)
+        $keywords = [];
+        if (preg_match('/\((.*?)\)/', $tipeTrim, $matches)) {
+            $inside = trim($matches[1]);
+            $subParts = preg_split('/[\/\,\-\s]+/', $inside);
+            foreach ($subParts as $sp) {
+                $sp = trim($sp);
+                if (strlen($sp) >= 3 && !in_array($sp, $keywords, true)) {
+                    $keywords[] = $sp;
+                }
+            }
+            if (strlen($inside) >= 3 && !in_array($inside, $keywords, true)) {
+                $keywords[] = $inside;
             }
         }
-        if (strlen($inside) >= 3 && !in_array($inside, $keywords, true)) {
-            $keywords[] = $inside;
+        foreach ($tokens as $w) {
+            if (strlen($w) >= 3 && !in_array($w, $keywords, true)) {
+                $keywords[] = $w;
+            }
         }
-    }
-    foreach ($tokens as $w) {
-        if (strlen($w) >= 3 && !in_array($w, $keywords, true)) {
-            $keywords[] = $w;
-        }
-    }
-    usort($keywords, function($a, $b) {
-        return strlen($b) - strlen($a);
-    });
+        usort($keywords, function($a, $b) {
+            return strlen($b) - strlen($a);
+        });
 
-    foreach ($keywords as $kw) {
-        $stmtKw = $conn->prepare(
-            'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-             WHERE merk LIKE ? AND tipe LIKE ? 
-             ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1'
-        );
-        if ($stmtKw) {
-            $kwLike = '%' . $kw . '%';
-            $stmtKw->bind_param('ssi', $mLike, $kwLike, $tahun);
-            $stmtKw->execute();
-            $rowKw = $stmtKw->get_result()->fetch_assoc();
-            $stmtKw->close();
-            if ($rowKw) {
+        foreach ($keywords as $kw) {
+            $stmtKw = $conn->prepare(
+                'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
+                 WHERE merk LIKE ? AND tipe LIKE ? 
+                 ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1'
+            );
+            if ($stmtKw) {
+                $kwLike = '%' . $kw . '%';
+                $stmtKw->bind_param('ssi', $mLike, $kwLike, $tahun);
+                $stmtKw->execute();
+                $rowKw = $stmtKw->get_result()->fetch_assoc();
+                $stmtKw->close();
+                if ($rowKw) {
+                    return [
+                        'njkb'        => (float)$rowKw['njkb'],
+                        'bobot'       => (float)$rowKw['bobot'],
+                        'tipe'        => $rowKw['tipe'],
+                        'merk'        => $rowKw['merk'],
+                        'tahun_buat'  => (int)$rowKw['tahun_buat'],
+                        'sumber'      => 'Model ' . $kw . ' (' . $rowKw['tipe'] . ')',
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
+        }
+
+        // Level 8: Fallback Merk Sama (Tahun Terdekat)
+        if (!empty($merkTrim)) {
+            $stmtMerk = $conn->prepare(
+                'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
+                 WHERE merk LIKE ? 
+                 ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1'
+            );
+            if ($stmtMerk) {
+                $stmtMerk->bind_param('si', $mLike, $tahun);
+                $stmtMerk->execute();
+                $rowMerk = $stmtMerk->get_result()->fetch_assoc();
+                $stmtMerk->close();
+                if ($rowMerk) {
+                    return [
+                        'njkb'        => (float)$rowMerk['njkb'],
+                        'bobot'       => (float)$rowMerk['bobot'],
+                        'tipe'        => $rowMerk['tipe'],
+                        'merk'        => $rowMerk['merk'],
+                        'tahun_buat'  => (int)$rowMerk['tahun_buat'],
+                        'sumber'      => 'Estimasi Merk ' . $merkTrim . ' (' . $rowMerk['tipe'] . ')',
+                        'is_estimasi' => true,
+                    ];
+                }
+            }
+        }
+    }
+
+    // Level 9: Fallback Tingkat Lanjut via Laravel Query Builder (DB Facade)
+    if (class_exists(\Illuminate\Support\Facades\DB::class)) {
+        try {
+            $dbRow = \Illuminate\Support\Facades\DB::table('njkb_data')
+                ->whereIn('merk', $merkAliases)
+                ->where('tahun_buat', $tahun)
+                ->where('tipe', $tipeTrim)
+                ->first();
+            if ($dbRow) {
                 return [
-                    'njkb'        => (float)$rowKw['njkb'],
-                    'bobot'       => (float)$rowKw['bobot'],
-                    'tipe'        => $rowKw['tipe'],
-                    'merk'        => $rowKw['merk'],
-                    'tahun_buat'  => (int)$rowKw['tahun_buat'],
-                    'sumber'      => 'Model ' . $kw . ' (' . $rowKw['tipe'] . ')',
+                    'njkb'        => (float)$dbRow->njkb,
+                    'bobot'       => (float)$dbRow->bobot,
+                    'tipe'        => $dbRow->tipe,
+                    'merk'        => $dbRow->merk,
+                    'tahun_buat'  => (int)$dbRow->tahun_buat,
+                    'sumber'      => 'Exact Match DB: ' . $dbRow->tipe,
                     'is_estimasi' => false,
                 ];
             }
-        }
-    }
 
-    // Level 8: Fallback Merk Sama (Tahun Terdekat)
-    if (!empty($merkTrim)) {
-        $stmtMerk = $conn->prepare(
-            'SELECT njkb, bobot, tipe, merk, tahun_buat FROM njkb_data 
-             WHERE merk LIKE ? 
-             ORDER BY ABS(tahun_buat - ?) ASC LIMIT 1'
-        );
-        if ($stmtMerk) {
-            $stmtMerk->bind_param('si', $mLike, $tahun);
-            $stmtMerk->execute();
-            $rowMerk = $stmtMerk->get_result()->fetch_assoc();
-            $stmtMerk->close();
-            if ($rowMerk) {
+            $tipeCleanAlpha = preg_replace('/[^A-Z0-9]/', '', strtoupper($tipeTrim));
+            $dbRow2 = \Illuminate\Support\Facades\DB::table('njkb_data')
+                ->whereIn('merk', $merkAliases)
+                ->where('tahun_buat', $tahun)
+                ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha])
+                ->first();
+            if ($dbRow2) {
                 return [
-                    'njkb'        => (float)$rowMerk['njkb'],
-                    'bobot'       => (float)$rowMerk['bobot'],
-                    'tipe'        => $rowMerk['tipe'],
-                    'merk'        => $rowMerk['merk'],
-                    'tahun_buat'  => (int)$rowMerk['tahun_buat'],
-                    'sumber'      => 'Estimasi Merk ' . $merkTrim . ' (' . $rowMerk['tipe'] . ')',
-                    'is_estimasi' => true,
+                    'njkb'        => (float)$dbRow2->njkb,
+                    'bobot'       => (float)$dbRow2->bobot,
+                    'tipe'        => $dbRow2->tipe,
+                    'merk'        => $dbRow2->merk,
+                    'tahun_buat'  => (int)$dbRow2->tahun_buat,
+                    'sumber'      => 'Normalisasi DB: ' . $dbRow2->tipe,
+                    'is_estimasi' => false,
                 ];
             }
+
+            $dbRow3 = \Illuminate\Support\Facades\DB::table('njkb_data')
+                ->whereIn('merk', $merkAliases)
+                ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha])
+                ->orderByRaw('ABS(tahun_buat - ?)', [$tahun])
+                ->first();
+            if ($dbRow3) {
+                return [
+                    'njkb'        => (float)$dbRow3->njkb,
+                    'bobot'       => (float)$dbRow3->bobot,
+                    'tipe'        => $dbRow3->tipe,
+                    'merk'        => $dbRow3->merk,
+                    'tahun_buat'  => (int)$dbRow3->tahun_buat,
+                    'sumber'      => 'Tahun Terdekat DB: ' . $dbRow3->tipe,
+                    'is_estimasi' => false,
+                ];
+            }
+        } catch (\Throwable $eDb) {
+            // Ignore DB exception, proceed
         }
     }
 
@@ -1269,17 +1364,17 @@ function cariNjkbData(?mysqli $conn, string $merk, string $tipe, int $tahun): ar
 
 
 /* ============================================================================
- * BAGIAN 7 - PENGAMBILAN NJKB REAL-TIME VIA API BANK NTT (CEK_PAJAKK)
+ * BAGIAN 7 - PENGAMBILAN DATA REAL-TIME VIA API BANK NTT (CEK_PAJAKK)
  * ========================================================================== */
 
 /**
- * Mengambil nilai NJKB langsung dari API Bank NTT (cek_pajakk).
+ * Mengambil data lengkap penetapan pajak langsung dari API Bank NTT (cek_pajakk).
  *
  * Menggunakan 5 karakter terakhir nomor rangka.
- * Mengembalikan float NJKB jika berhasil, atau null jika gagal/error koneksi.
+ * Mengembalikan array data penetapan resmi jika berhasil, atau null jika gagal/error koneksi.
  */
-if (!function_exists('ambilNjkbDariApi')) {
-    function ambilNjkbDariApi(string $nopol, string $noRangka): ?float
+if (!function_exists('ambilDataCekPajakApi')) {
+    function ambilDataCekPajakApi(string $nopol, string $noRangka): ?array
     {
         global $dbKonfigurasi;
 
@@ -1291,7 +1386,7 @@ if (!function_exists('ambilNjkbDariApi')) {
         }
 
         $rangka5 = substr($noRangkaTrim, -5);
-        $url = $dbKonfigurasi['api_url_cek_pajak'] ?? 'https://dash.bpad.nttprov.go.id/xxxxbanknttoff/bankntt/cek_pajakk/';
+        $url = $dbKonfigurasi['api_url_cek_pajak'] ?? 'https://dash.bpad.nttprov.go.id/xxxxbankntt/bankntt/cek_pajakk/';
 
         $payload = json_encode([
             'nopol'  => $nopolClean,
@@ -1308,8 +1403,8 @@ if (!function_exists('ambilNjkbDariApi')) {
                 'Accept: application/json',
                 'Content-Length: ' . strlen($payload)
             ],
-            CURLOPT_CONNECTTIMEOUT => 4,
-            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_CONNECTTIMEOUT => 6,
+            CURLOPT_TIMEOUT        => 10,
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => 0
         ]);
@@ -1323,8 +1418,23 @@ if (!function_exists('ambilNjkbDariApi')) {
         }
 
         $json = json_decode($response, true);
-        if (is_array($json) && isset($json['njkb'])) {
-            $njkbVal = (float)$json['njkb'];
+        if (is_array($json) && (isset($json['njkb']) || isset($json['pkb']))) {
+            return $json;
+        }
+
+        return null;
+    }
+}
+
+/**
+ * Mengambil nilai NJKB langsung dari API Bank NTT (cek_pajakk).
+ */
+if (!function_exists('ambilNjkbDariApi')) {
+    function ambilNjkbDariApi(string $nopol, string $noRangka): ?float
+    {
+        $data = ambilDataCekPajakApi($nopol, $noRangka);
+        if (is_array($data) && isset($data['njkb'])) {
+            $njkbVal = (float)$data['njkb'];
             if ($njkbVal > 0) {
                 return $njkbVal;
             }

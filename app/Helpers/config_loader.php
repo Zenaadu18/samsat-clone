@@ -17,7 +17,7 @@ if (!function_exists('reload_samsat_config')) {
             'rasio_opsen_pkb'            => '0.66',
             'persen_denda_pkb_per_bulan' => '0.01',
             'api_url_samsat'             => 'https://dash.bpad.nttprov.go.id/pajak/webdtd/pendataan/core/php/getnopol.php',
-            'api_url_cek_pajak'          => 'https://dash.bpad.nttprov.go.id/xxxxbanknttoff/bankntt/cek_pajakk/',
+            'api_url_cek_pajak'          => 'https://dash.bpad.nttprov.go.id/xxxxbankntt/bankntt/cek_pajakk/',
             'amnesti_aktif'              => '1',
             'amnesti_mulai'              => '2026-09-01',
             'amnesti_selesai'            => '2026-11-30',

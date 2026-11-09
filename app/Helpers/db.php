@@ -1,5 +1,6 @@
 <?php
 // app/Helpers/db.php
+global $conn;
 
 $host = env('DB_HOST') ?: ($_ENV['DB_HOST'] ?? ($_SERVER['DB_HOST'] ?? '127.0.0.1'));
 $port = (int)(env('DB_PORT') ?: ($_ENV['DB_PORT'] ?? ($_SERVER['DB_PORT'] ?? 3306)));

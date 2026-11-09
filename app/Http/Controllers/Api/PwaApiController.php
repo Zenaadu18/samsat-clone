@@ -94,7 +94,7 @@ class PwaApiController extends Controller
                 'sd_notice'        => (string)$request->input('sd_notice', ''),
                 'sd_stnk'          => (string)$request->input('sd_stnk', ''),
                 'is_mutasi'        => (bool)$request->input('is_mutasi', false),
-                'kanal_bayar'      => (string)$request->input('kanal_bayar', 'loket'),
+                'kanal_bayar'      => (string)$request->input('kanal_bayar', 'online'),
                 'tanggal_simulasi' => (string)$request->input('tanggal_simulasi', date('Y-m-d')),
             ];
 
@@ -144,7 +144,7 @@ class PwaApiController extends Controller
         ]);
 
         $nopolInput = preg_replace('/[^A-Z0-9]/', '', strtoupper((string)$request->input('nopol')));
-        $kanalBayar = (string)$request->input('kanal_bayar', 'loket');
+        $kanalBayar = (string)$request->input('kanal_bayar', 'online');
         $tglSimulasi = (string)$request->input('tanggal_simulasi', date('Y-m-d'));
         $isMutasi = (bool)$request->input('is_mutasi', false);
 
@@ -164,7 +164,7 @@ class PwaApiController extends Controller
             $alamat      = trim((string)($apiData['Alamat'] ?? '-'));
             $uptAsal     = trim((string)($apiData['UPT_ASAL'] ?? ''));
             $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
-            $noRangka    = trim((string)($apiData['NoRangka'] ?? ''));
+            $noRangka    = trim((string)($apiData['NoRangka'] ?? $apiData['no_rangka'] ?? $apiData['rangka'] ?? ''));
 
             $njkbInfo = $this->taxService->findNjkb($merk, $tipe, $tahun, $nopolInput, $noRangka, $jenisKend, $kJr, $isiCylinder);
             $njkb = $njkbInfo['njkb'];
