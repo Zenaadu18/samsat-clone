@@ -214,14 +214,12 @@ TOTAL ESTIMASI BAYAR: Rp 0\n`;
 - Denda PKB: ${formatRupiah(d.denda_pkb || 0)}
 - Denda Opsen PKB: ${formatRupiah(d.denda_opsen_pkb || d.denda_opsen || 0)}
 - SWDKLLJ: ${formatRupiah(d.swdkllj || 0)} ${d.denda_swdkllj > 0 ? `(Denda: ${formatRupiah(d.denda_swdkllj)})` : ''}
-${d.biaya_stnk_total > 0 ? `- Biaya STNK/TNKB: ${formatRupiah(d.biaya_stnk_total)}\n` : ''}--------------------------------
-TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)}\n`;
+${d.biaya_stnk_total > 0 ? `- Biaya STNK/TNKB: ${formatRupiah(d.biaya_stnk_total)}\n` : ''}${d.amnesti_total_potongan > 0 ? `- Keringanan Amnesti: -${formatRupiah(d.amnesti_total_potongan)}\n` : ''}--------------------------------
+TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
 
-      if (d.diskon_digital > 0 || (d.total_setelah_diskon && d.total_setelah_diskon < (d.total_pajak || d.total_bayar))) {
-        const diskon = d.diskon_digital || ((d.total_pajak || d.total_bayar) - d.total_setelah_diskon);
-        const bayarNet = d.total_setelah_diskon || ((d.total_pajak || d.total_bayar) - diskon);
-        text += `- Diskon Pembayaran Digital PRO NTT: -${formatRupiah(diskon)}\n`;
-        text += `TOTAL BAYAR (SETELAH DISKON): ${formatRupiah(bayarNet)}\n`;
+      const isStnkAktif = !d.stnk_wajib && (d.biaya_stnk_total || 0) === 0;
+      if (isStnkAktif && d.total_setelah_diskon > 0 && d.total_setelah_diskon < (d.total_pajak || d.total_bayar)) {
+        text += `Bayar lewat PRO NTT: ${formatRupiah(d.total_setelah_diskon)}\n`;
       }
     }
 
@@ -380,8 +378,12 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
         ['7. PNBP STNK & TNKB', formatRupiah(d.biaya_stnk_total || 0)],
       ];
 
+      if (d.amnesti_total_potongan > 0) {
+        items.push(['✨ Anda Hemat (Keringanan)', `- ${formatRupiah(d.amnesti_total_potongan)}`]);
+      }
+
       items.forEach(([label, val]) => {
-        ctx.fillStyle = '#475569';
+        ctx.fillStyle = label.includes('Hemat') ? '#059669' : '#475569';
         ctx.fillText(label, 40, y);
         const textWidth = ctx.measureText(val).width;
         ctx.fillText(val, 760 - textWidth, y);
@@ -389,62 +391,37 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
       });
     }
 
-    // Box Total Tagihan (Nilai Sebelum Diskon)
-    ctx.fillStyle = '#f8fafc';
-    ctx.strokeStyle = '#cbd5e1';
+    // Box Total
+    ctx.fillStyle = '#ecfdf5';
+    ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 2;
     if (ctx.roundRect) {
       ctx.beginPath();
-      ctx.roundRect(40, y + 15, 720, 75, 12);
+      ctx.roundRect(40, y + 25, 720, 80, 12);
       ctx.fill();
       ctx.stroke();
     } else {
-      ctx.fillRect(40, y + 15, 720, 75);
-      ctx.strokeRect(40, y + 15, 720, 75);
+      ctx.fillRect(40, y + 25, 720, 80);
+      ctx.strokeRect(40, y + 25, 720, 80);
     }
 
-    ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.fillText('TOTAL ESTIMASI TAGIHAN', 65, y + 58);
+    ctx.fillStyle = '#065f46';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('TOTAL ESTIMASI BAYAR', 65, y + 72);
 
-    ctx.font = 'bold 24px monospace';
-    const totStr = formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar);
+    ctx.font = 'bold 26px monospace';
+    const totStr = formatRupiah(d.total_pajak || d.total_bayar);
     const totWidth = ctx.measureText(totStr).width;
-    ctx.fillText(totStr, 735 - totWidth, y + 59);
+    ctx.fillText(totStr, 735 - totWidth, y + 73);
 
-    y += 95;
-
-    // Box Diskon Pembayaran Digital jika ada
-    const hasDiskon = !d.is_pajak_aktif && (d.diskon_digital > 0 || (d.total_setelah_diskon && d.total_setelah_diskon < (d.total_pajak || d.total_bayar)));
-    if (hasDiskon) {
-      const diskonVal = d.diskon_digital || ((d.total_pajak || d.total_bayar) - d.total_setelah_diskon);
-      const bayarNet = d.total_setelah_diskon || ((d.total_pajak || d.total_bayar) - diskonVal);
-
-      ctx.fillStyle = '#ecfdf5';
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2;
-      if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(40, y + 5, 720, 80, 12);
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        ctx.fillRect(40, y + 5, 720, 80);
-        ctx.strokeRect(40, y + 5, 720, 80);
-      }
-
-      ctx.fillStyle = '#065f46';
-      ctx.font = 'bold 15px sans-serif';
-      ctx.fillText('TOTAL BAYAR (SETELAH DISKON)', 65, y + 42);
-      ctx.font = '11px sans-serif';
+    // Info kecil PRO NTT jika STNK aktif
+    const isStnkAktif = !d.stnk_wajib && (d.biaya_stnk_total || 0) === 0;
+    if (isStnkAktif && !d.is_pajak_aktif && d.total_setelah_diskon > 0 && d.total_setelah_diskon < (d.total_pajak || d.total_bayar)) {
       ctx.fillStyle = '#047857';
-      ctx.fillText(`Diskon Pembayaran Digital PRO NTT: -${formatRupiah(diskonVal)}`, 65, y + 66);
-
-      ctx.font = 'bold 24px monospace';
-      ctx.fillStyle = '#065f46';
-      const netStr = formatRupiah(bayarNet);
-      const netWidth = ctx.measureText(netStr).width;
-      ctx.fillText(netStr, 735 - netWidth, y + 52);
+      ctx.font = 'italic 13px sans-serif';
+      const proStr = `*Bayar lewat PRO NTT: ${formatRupiah(d.total_setelah_diskon)}`;
+      const proWidth = ctx.measureText(proStr).width;
+      ctx.fillText(proStr, 760 - proWidth, y + 125);
     }
 
     // Footer Catatan & Copyright
@@ -729,13 +706,17 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                           className="flex justify-between items-center cursor-pointer select-none"
                         >
                           <div>
-                            <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                               <span>1. PKB Pokok</span>
-                              {taxData.pkb_tunggakan > 0 && (
+                              {taxData.diskon_pkb_tunggakan > 0 ? (
+                                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                                  Bebas Tunggakan
+                                </span>
+                              ) : (taxData.pkb_tunggakan > 0 && (
                                 <span className="text-[9px] bg-slate-200 text-slate-700 px-1 py-0.2 rounded font-semibold">
                                   Berjalan + Tunggakan
                                 </span>
-                              )}
+                              ))}
                             </div>
                             <span className="text-[10px] text-slate-400">Pajak Kendaraan Bermotor</span>
                           </div>
@@ -751,18 +732,24 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                           <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[11px] space-y-1 text-slate-600">
                             <div className="flex justify-between">
                               <span>PKB Tahun Berjalan:</span>
-                              <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_berjalan)}</span>
+                              <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_berjalan_kotor || taxData.pkb_berjalan)}</span>
                             </div>
-                            {taxData.pkb_tunggakan > 0 && (
-                              <div className="flex justify-between text-amber-700">
-                                <span>PKB Masa Tunggakan:</span>
-                                <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_tunggakan)}</span>
+                            {(taxData.pkb_tunggakan_kotor > 0 || taxData.pkb_tunggakan > 0) && (
+                              <div className="flex justify-between text-slate-600">
+                                <span>PKB Masa Tunggakan {taxData.tahun_tunggakan > 0 ? `(${taxData.tahun_tunggakan} thn)` : ''}:</span>
+                                <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_tunggakan_kotor || taxData.pkb_tunggakan)}</span>
                               </div>
                             )}
-                            {(taxData.diskon_digital_pkb > 0 || taxData.diskon_pkb_berjalan > 0 || taxData.diskon_pkb_tunggakan > 0) && (
+                            {taxData.diskon_pkb_tunggakan > 0 && (
                               <div className="flex justify-between text-emerald-700 font-semibold">
-                                <span>Diskon Digital PKB:</span>
-                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_digital_pkb || (taxData.diskon_pkb_berjalan || 0) + (taxData.diskon_pkb_tunggakan || 0))}</span>
+                                <span>Penghapusan Pokok Tunggakan (100%):</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_pkb_tunggakan)}</span>
+                              </div>
+                            )}
+                            {taxData.diskon_pkb_berjalan > 0 && (
+                              <div className="flex justify-between text-emerald-700 font-semibold">
+                                <span>Keringanan PKB Berjalan:</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_pkb_berjalan)}</span>
                               </div>
                             )}
                           </div>
@@ -794,15 +781,15 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                               <span className="font-mono-num font-medium">{formatRupiah(taxData.opsen_pkb_berjalan)}</span>
                             </div>
                             {taxData.opsen_pkb_tunggakan > 0 && (
-                              <div className="flex justify-between text-amber-700">
+                              <div className="flex justify-between text-slate-600">
                                 <span>Opsen Masa Tunggakan:</span>
                                 <span className="font-mono-num font-medium">{formatRupiah(taxData.opsen_pkb_tunggakan)}</span>
                               </div>
                             )}
-                            {(taxData.diskon_digital_opsen > 0 || taxData.diskon_opsen_pkb_berjalan > 0) && (
+                            {taxData.diskon_opsen_pkb_tunggakan > 0 && (
                               <div className="flex justify-between text-emerald-700 font-semibold">
-                                <span>Diskon Digital Opsen:</span>
-                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_digital_opsen || taxData.diskon_opsen_pkb_berjalan)}</span>
+                                <span>Penghapusan Opsen Tunggakan:</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_opsen_pkb_tunggakan)}</span>
                               </div>
                             )}
                           </div>
@@ -810,40 +797,57 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                       </div>
 
                       {/* 3. DENDA PKB & DENDA OPSEN */}
-                      {(taxData.denda_pkb > 0 || (taxData.denda_opsen_pkb || taxData.denda_opsen) > 0) && (
-                        <div className="border border-rose-100 rounded-xl p-2.5 bg-rose-50/40">
+                      {(taxData.denda_pkb > 0 || (taxData.denda_opsen_pkb || taxData.denda_opsen) > 0 || taxData.amnesti_denda_dibebaskan > 0) && (
+                        <div className={`border rounded-xl p-2.5 ${taxData.amnesti_denda_dibebaskan > 0 && (taxData.denda_pkb + (taxData.denda_opsen_pkb || taxData.denda_opsen || 0)) === 0 ? 'border-emerald-100 bg-emerald-50/40' : 'border-rose-100 bg-rose-50/40'}`}>
                           <div
                             onClick={() => toggleSection('denda')}
                             className="flex justify-between items-center cursor-pointer select-none"
                           >
                             <div>
-                              <div className="text-xs font-bold text-rose-800">3. Denda Keterlambatan</div>
-                              <span className="text-[10px] text-rose-500">Denda PKB &amp; Denda Opsen</span>
+                              <div className="text-xs font-bold flex items-center gap-1.5 text-slate-800">
+                                <span>3. Denda Keterlambatan</span>
+                                {taxData.amnesti_denda_dibebaskan > 0 && (taxData.denda_pkb + (taxData.denda_opsen_pkb || taxData.denda_opsen || 0)) === 0 && (
+                                  <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                                    Bebas Denda 100%
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400">Denda PKB &amp; Denda Opsen</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <span className="font-mono-num font-bold text-xs text-rose-700">
+                              <span className={`font-mono-num font-bold text-xs ${taxData.amnesti_denda_dibebaskan > 0 && (taxData.denda_pkb + (taxData.denda_opsen_pkb || taxData.denda_opsen || 0)) === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                                 {formatRupiah(taxData.denda_pkb + (taxData.denda_opsen_pkb || taxData.denda_opsen || 0))}
                               </span>
-                              {openSections.denda ? <IconChevronUp size={14} className="text-rose-400" /> : <IconChevronDown size={14} className="text-rose-400" />}
+                              {openSections.denda ? <IconChevronUp size={14} className="text-slate-400" /> : <IconChevronDown size={14} className="text-slate-400" />}
                             </div>
                           </div>
 
                           {openSections.denda && (
-                            <div className="mt-2.5 pt-2 border-t border-rose-200/60 text-[11px] space-y-1 text-rose-800">
-                              <div className="flex justify-between">
-                                <span>Denda PKB Berjalan:</span>
-                                <span className="font-mono-num font-medium">{formatRupiah(taxData.denda_pkb_berjalan)}</span>
-                              </div>
+                            <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[11px] space-y-1 text-slate-600">
+                              {taxData.denda_pkb_berjalan > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Denda PKB Berjalan:</span>
+                                  <span className="font-mono-num font-medium">{formatRupiah(taxData.denda_pkb_berjalan)}</span>
+                                </div>
+                              )}
                               {taxData.denda_pkb_tunggakan > 0 && (
                                 <div className="flex justify-between">
                                   <span>Denda PKB Tunggakan:</span>
                                   <span className="font-mono-num font-medium">{formatRupiah(taxData.denda_pkb_tunggakan)}</span>
                                 </div>
                               )}
-                              <div className="flex justify-between">
-                                <span>Denda Opsen PKB:</span>
-                                <span className="font-mono-num font-medium">{formatRupiah(taxData.denda_opsen_pkb || taxData.denda_opsen || 0)}</span>
-                              </div>
+                              {(taxData.denda_opsen_pkb || taxData.denda_opsen) > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Denda Opsen PKB:</span>
+                                  <span className="font-mono-num font-medium">{formatRupiah(taxData.denda_opsen_pkb || taxData.denda_opsen || 0)}</span>
+                                </div>
+                              )}
+                              {taxData.amnesti_denda_dibebaskan > 0 && (
+                                <div className="flex justify-between text-emerald-700 font-semibold">
+                                  <span>Penghapusan Denda (Amnesti 100%):</span>
+                                  <span className="font-mono-num">- {formatRupiah(taxData.amnesti_denda_dibebaskan)}</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -925,14 +929,29 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                         </div>
                       )}
 
+                      {/* Potongan Keringanan Jika Aktif */}
+                      {taxData.amnesti_total_potongan > 0 && (
+                        <div 
+                          className="flex justify-between items-center border border-emerald-300 p-2.5 rounded-xl text-xs text-emerald-800 font-bold"
+                          style={{
+                            backgroundColor: '#ecfdf5',
+                            background: 'linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%)',
+                          }}
+                        >
+                          <span>✨ Anda Hemat</span>
+                          <span className="font-mono-num text-emerald-700 font-black">
+                            - {formatRupiah(taxData.amnesti_total_potongan)}
+                          </span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
 
-                {/* Total Highlight (Tarif Normal Sebelum Diskon) */}
+                {/* Total Highlight */}
                 <div className="border-t border-slate-200 pt-3 mt-2 flex justify-between items-baseline">
                   <div>
-                    <span className="text-xs font-bold text-slate-800 block">TOTAL TAGIHAN</span>
+                    <span className="text-xs font-bold text-slate-800 block">TOTAL ESTIMASI BAYAR</span>
                     {taxData.is_pajak_aktif && (
                       <span className="text-[10px] text-emerald-600 font-semibold block">Masa Pajak Masih Aktif</span>
                     )}
@@ -942,28 +961,12 @@ TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)
                   </span>
                 </div>
 
-                {/* Diskon Pembayaran Digital & Total Bayar Online (Diletakkan di Bawah Total Tagihan) */}
-                {!taxData.is_pajak_aktif && (taxData.diskon_digital > 0 || (taxData.total_setelah_diskon && taxData.total_setelah_diskon < taxData.total_pajak)) && (
-                  <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/90 shadow-2xs space-y-2.5">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-emerald-800 flex items-center gap-1.5">
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-200 text-emerald-800 text-[10px] font-black">%</span>
-                        Diskon Pembayaran Digital PRO NTT
-                      </span>
-                      <span className="font-mono-num font-bold text-emerald-700">
-                        - {formatRupiah(taxData.diskon_digital || (taxData.total_pajak - taxData.total_setelah_diskon))}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 border-t border-emerald-200/70 flex justify-between items-baseline">
-                      <div>
-                        <span className="text-xs font-black text-emerald-950 block">TOTAL BAYAR (SETELAH DISKON)</span>
-                        <span className="text-[10px] text-emerald-700 font-medium block">Berlaku untuk pembayaran via QRIS / Kanal Digital Bank NTT</span>
-                      </div>
-                      <span className="font-mono-num text-lg sm:text-xl font-black text-emerald-700">
-                        {formatRupiah(taxData.total_setelah_diskon || (taxData.total_pajak - (taxData.diskon_digital || 0)))}
-                      </span>
-                    </div>
+                {/* Info kecil pembayaran PRO NTT (Hanya jika masa STNK masih aktif) */}
+                {!taxData.is_pajak_aktif && !taxData.stnk_wajib && (taxData.biaya_stnk_total || 0) === 0 && taxData.total_setelah_diskon > 0 && taxData.total_setelah_diskon < taxData.total_pajak && (
+                  <div className="mt-1.5 flex justify-end">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Bayar lewat PRO NTT <span className="font-mono-num font-bold text-emerald-700">{formatRupiah(taxData.total_setelah_diskon)}</span>
+                    </span>
                   </div>
                 )}
               </div>
