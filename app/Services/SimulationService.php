@@ -158,6 +158,12 @@ class SimulationService
         $bobot           = (float)($params['bobot'] ?? 1.0);
         $njub            = (float)($params['njub'] ?? 0);
         $kGuna           = strtoupper(trim((string)($params['k_guna'] ?? 'PRIBADI')));
+        $namaPemilik     = strtoupper(trim((string)($params['nama'] ?? $params['pemilik'] ?? '')));
+        $nmUsaha         = strtoupper(trim((string)($params['nm_usaha'] ?? '')));
+        $isAngkutanUmum  = (strpos($kGuna, 'UMUM') !== false);
+        $isBadan         = function_exists('isBadanUsaha') ? isBadanUsaha($namaPemilik, $nmUsaha) : false;
+        $isUmumNonBadan  = ($isAngkutanUmum && !$isBadan && !empty($namaPemilik));
+        $kGunaHitung     = $isUmumNonBadan ? 'PRIBADI' : $kGuna;
         $jenisKend       = strtoupper(trim((string)($params['jenis_kendaraan'] ?? 'MINIBUS')));
         $kJr             = strtoupper(trim((string)($params['k_jr'] ?? '')));
         $isiCylinder     = (int)($params['isi_cylinder'] ?? 1500);
@@ -231,7 +237,7 @@ class SimulationService
         foreach ($periods as $idx => $per) {
             $isBerjalan = ($idx === $indexBerjalan);
             $isNew = \menggunakanTarifBaru($per['start']);
-            $tarif = \getTarifPkb($kGuna, $isNew);
+            $tarif = \getTarifPkb($kGunaHitung, $isNew);
             $pkbThn = round($dpNormal * $tarif);
             $opsenThn = $isNew ? (int)floor($pkbThn * 0.66) : 0;
 
@@ -373,7 +379,7 @@ class SimulationService
         $periodBerjalan = end($periods);
         $jtBerjalan = $periodBerjalan ? $periodBerjalan['start'] : $simDate;
         $isBerjalanTarifBaru = \menggunakanTarifBaru($jtBerjalan);
-        $tarifBerjalan = \getTarifPkb($kGuna, $isBerjalanTarifBaru);
+        $tarifBerjalan = \getTarifPkb($kGunaHitung, $isBerjalanTarifBaru);
 
         $ranPkBerjalanKotor = round($ranDpPkb * $tarifBerjalan);
         $ranDiskonBerjalanRp = (int)floor($ranPkBerjalanKotor * ($ranDiskonPokokBerjalanPct / 100));
@@ -474,6 +480,8 @@ class SimulationService
                 'is_roda23'                  => $isRoda23,
                 'kategori_roda'              => $isRoda23 ? 'Roda 2 & 3' : 'Roda 4 dan seterusnya',
                 'penggunaan'                 => $kGuna,
+                'is_umum_non_badan'          => $isUmumNonBadan,
+                'notifikasi_tarif'           => $isUmumNonBadan ? 'Kendaraan dengan penggunaan Angkutan Umum yang kepemilikannya bukan atas nama Badan Usaha atau PT dikenakan tarif PKB Pribadi (1,2%) sesuai ketentuan UU HKPD.' : '',
                 'is_mutasi'                  => $isMutasi,
                 'kanal_bayar'                => $kanalBayar,
                 'dp_normal'                  => $dpNormal,

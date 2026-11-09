@@ -196,6 +196,7 @@ export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, on
 Nomor Polisi : ${d.nopol}
 Nama Pemilik : ${d.pemilik || '-'}
 Unit : ${d.unit || `${d.merk} ${d.tipe}`}
+Penggunaan : ${d.penggunaan || '-'}${d.is_umum_non_badan ? ' (Tarif Pribadi 1,2% - Non Badan Usaha/PT)' : ''}
 Tahun Pembuatan : ${d.tahun || '-'}
 Masa Pajak : ${formatDate(d.sd_notice)}
 Masa STNK : ${formatDate(d.sd_stnk)}
@@ -220,6 +221,10 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
       const isStnkAktif = !d.stnk_wajib && (d.biaya_stnk_total || 0) === 0;
       if (isStnkAktif && d.total_setelah_diskon > 0 && d.total_setelah_diskon < (d.total_pajak || d.total_bayar)) {
         text += `Bayar lewat PRO NTT: ${formatRupiah(d.total_setelah_diskon)}\n`;
+      }
+
+      if (d.is_umum_non_badan) {
+        text += `\n*PEMBERITAHUAN TARIF: Kendaraan terdaftar Angkutan Umum namun atas nama perorangan (bukan Badan Usaha/PT) sehingga perhitungan PKB dikenakan tarif Pribadi (1,2%) sesuai regulasi UU HKPD.\n`;
       }
     }
 
@@ -369,7 +374,7 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
       y = 520;
     } else {
       const items = [
-        ['1. PKB Pokok (Pajak Kendaraan)', formatRupiah(d.pkb_total)],
+        [d.is_umum_non_badan ? '1. PKB Pokok (Pribadi 1,2%)' : '1. PKB Pokok (Pajak Kendaraan)', formatRupiah(d.pkb_total)],
         ['2. Opsen PKB (66%)', formatRupiah(d.opsen_pkb)],
         ['3. Denda Keterlambatan PKB', formatRupiah(d.denda_pkb || 0)],
         ['4. Denda Opsen PKB', formatRupiah(d.denda_opsen_pkb || d.denda_opsen || 0)],
@@ -585,6 +590,24 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
               </div>
             )}
 
+            {/* Notifikasi Khusus: Angkutan Umum Atas Nama Perorangan */}
+            {taxData.is_umum_non_badan && (
+              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-2xs">
+                <div className="p-1.5 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5">
+                  <IconAlertTriangle size={18} />
+                </div>
+                <div className="space-y-1">
+                  <div className="font-bold text-amber-950 text-xs sm:text-sm flex items-center gap-2">
+                    <span>Pemberitahuan Tarif PKB (Angkutan Umum Perorangan)</span>
+                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-bold">Tarif Pribadi 1,2%</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Kendaraan ini terdaftar dengan Penggunaan <strong>{taxData.penggunaan || 'Angkutan Umum'}</strong>, namun kepemilikannya atas nama <strong>perorangan (bukan Badan Usaha / PT)</strong>. Berdasarkan ketentuan regulasi UU HKPD &amp; Kebijakan Samsat NTT, kendaraan angkutan umum yang berhak memperoleh tarif khusus (0,5%) wajib berbadan hukum (PT / Koperasi / CV). Karena kepemilikan atas nama perorangan, perhitungan PKB dialihkan menggunakan tarif <strong>Pribadi (1,2%)</strong>.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Left Column: Vehicle Info Card */}
               <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 flex flex-col justify-between">
@@ -630,6 +653,20 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                       </span>
                       <span className="font-semibold text-slate-800 text-sm">
                         {taxData.unit || `${taxData.merk} ${taxData.tipe}`}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 text-[10px] font-semibold block uppercase tracking-wider">
+                        Penggunaan :
+                      </span>
+                      <span className="font-semibold text-slate-800 text-xs flex items-center gap-1.5">
+                        {taxData.penggunaan || '-'}
+                        {taxData.is_umum_non_badan && (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold">
+                            Tarif Pribadi (1,2%)
+                          </span>
+                        )}
                       </span>
                     </div>
 
@@ -706,8 +743,13 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                           className="flex justify-between items-center cursor-pointer select-none"
                         >
                           <div>
-                            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
                               <span>1. PKB Pokok</span>
+                              {taxData.is_umum_non_badan && (
+                                <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+                                  Tarif Pribadi (1,2%)
+                                </span>
+                              )}
                               {taxData.diskon_pkb_tunggakan > 0 ? (
                                 <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
                                   Bebas Tunggakan
@@ -730,6 +772,12 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
 
                         {openSections.pkb && (
                           <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[11px] space-y-1 text-slate-600">
+                            {taxData.is_umum_non_badan && (
+                              <div className="flex justify-between text-amber-800 bg-amber-50/70 p-1.5 rounded-lg font-semibold mb-1 border border-amber-200/60">
+                                <span>Kategori Tarif PKB:</span>
+                                <span>Pribadi 1,2% (Non Badan Usaha/PT)</span>
+                              </div>
+                            )}
                             <div className="flex justify-between">
                               <span>PKB Tahun Berjalan:</span>
                               <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_berjalan_kotor || taxData.pkb_berjalan)}</span>

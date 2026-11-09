@@ -469,10 +469,18 @@ class TaxCalculationService
         $sdNotice    = trim((string)($apiData['SD_NOTICE'] ?? ''));
         $sdStnk      = trim((string)($apiData['SD_STNK'] ?? ''));
         $nama        = trim((string)($apiData['NamaPemilik'] ?? '-'));
+        $nmUsaha     = trim((string)($apiData['NM_USAHA'] ?? ''));
         $alamat      = trim((string)($apiData['Alamat'] ?? '-'));
         $uptAsal     = trim((string)($apiData['UPT_ASAL'] ?? ''));
         $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
         $noRangka    = trim((string)($apiData['NoRangka'] ?? $apiData['no_rangka'] ?? $apiData['rangka'] ?? ''));
+
+        // Cek apakah kendaraan angkutan umum atas nama perorangan (bukan Badan Usaha / PT)
+        // Sesuai UU HKPD, kendaraan angkutan umum non-badan usaha dikenakan tarif Pribadi (1,2%)
+        $isAngkutanUmum = (stripos($kGuna, 'UMUM') !== false);
+        $isBadanUsaha   = function_exists('isBadanUsaha') ? isBadanUsaha($nama, $nmUsaha) : false;
+        $isUmumNonBadan = ($isAngkutanUmum && !$isBadanUsaha);
+        $kGunaHitung    = $isUmumNonBadan ? 'PRIBADI' : $kGuna;
 
         $presetNjkb = !empty($apiData['njkb_api']) ? (float)$apiData['njkb_api'] : null;
         $presetBobot = !empty($apiData['bobot_api']) ? (float)$apiData['bobot_api'] : null;
@@ -528,8 +536,28 @@ class TaxCalculationService
             $totalPajak     = $totalByrNormal;
             $sumPkbNor      = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
 
-            $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
-            $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
+            if ($isUmumNonBadan && $dpPkb > 0) {
+                // Sesuai UU HKPD, kendaraan Angkutan Umum perorangan dikenakan tarif Pribadi (1,2%)
+                $pkbBerjalanKotor = (int)round($dpPkb * 0.012);
+                $pkbBerjalanNet   = $pkbBerjalanKotor;
+                $diskonPkbBerjalan= 0;
+                $opsenBerjalanKotor = (int)floor($pkbBerjalanKotor * 0.66);
+                $opsenBerjalanNet   = $opsenBerjalanKotor;
+                $diskonOpsenBerjalan= 0;
+                $pkbTotal     = $pkbBerjalanKotor + $pkbTunggakan;
+                $opsenPkb     = $opsenBerjalanKotor;
+
+                $totalByrNormal = (int)($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']);
+                $totalBayarNet  = $totalByrNormal;
+                $diskonDigital  = 0;
+                $totalPajak     = $totalByrNormal;
+
+                $tarifLama = 1.5;
+                $tarifBaru = 1.2;
+            } else {
+                $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
+                $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
+            }
 
             $tahunTunggakan = !empty($sdNotice) && \buatTanggal($sdNotice) < new \DateTime('today') ? max(0, (int)\buatTanggal($sdNotice)->diff(new \DateTime('today'))->y) : 0;
             $tahunBerjalan  = 1;
@@ -612,7 +640,7 @@ class TaxCalculationService
             // Hitung PKB Lengkap menggunakan fungsi native hitungPkbLengkap
             $pkbData = \hitungPkbLengkap(
                 $dpPkb,
-                $kGuna,
+                $kGunaHitung,
                 $sdNotice,
                 [
                     'alamat'         => $alamat,
@@ -626,7 +654,9 @@ class TaxCalculationService
                     'type'           => $tipe,
                     'rubah_bentuk'   => $rubahBentuk,
                     'k_jr'           => $kJr,
-                    'upt_asal'       => $uptAsal
+                    'upt_asal'       => $uptAsal,
+                    'nama'           => $nama,
+                    'nm_usaha'       => $nmUsaha,
                 ]
             );
 
@@ -643,8 +673,8 @@ class TaxCalculationService
             $tahunBerjalan  = (int)($pkbData['tahun_berjalan'] ?? 1);
             $jumlahTahunPajak = max(1, (int)($pkbData['tahun_total'] ?? 1));
 
-            $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
-            $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
+            $tarifLama = \getTarifPkb($kGunaHitung, false, $isKhusus05) * 100;
+            $tarifBaru = \getTarifPkb($kGunaHitung, true, $isKhusus05) * 100;
 
             // Pokok Kotor (sebelum diskon kanal digital)
             $pkbBerjalanKotor = (int)$pkbData['pkb_berjalan_kotor'];
@@ -799,6 +829,8 @@ class TaxCalculationService
             'tarif_baru'       => $tarifBaru . '%',
             'tarif_label'      => $tarifBaru . '%',
             'peringatan'       => $pkbData['peringatan'] ?? '',
+            'is_umum_non_badan'=> $isUmumNonBadan,
+            'notifikasi_tarif' => $isUmumNonBadan ? 'Kendaraan dengan penggunaan Angkutan Umum yang kepemilikannya bukan atas nama Badan Usaha atau PT dikenakan tarif PKB Pribadi (1,2%) sesuai ketentuan UU HKPD.' : '',
 
             'amnesti_aktif'    => (bool)($pkbData['amnesti_aktif'] ?? false),
             'amnesti_diskon_pkb_berjalan' => (int)($pkbData['amnesti_diskon_pkb_berjalan'] ?? 0),

@@ -13,6 +13,71 @@
 
 
 /* ============================================================================
+ * BAGIAN 0 - VALIDASI ENTITAS BADAN USAHA / HUKUM
+ * ========================================================================== */
+
+/**
+ * Memeriksa apakah nama pemilik atau nama usaha merupakan Badan Usaha / PT / Badan Hukum.
+ * Berdasarkan UU HKPD dan Perda Pajak Daerah NTT, hanya kendaraan atas nama Badan Usaha / PT / Badan Hukum
+ * yang berhak atas tarif Angkutan Umum (0,5%). Kendaraan Angkutan Umum atas nama perorangan
+ * dikenakan tarif Pribadi (1,2%).
+ */
+if (!function_exists('isBadanUsaha')) {
+    function isBadanUsaha(?string $nama, ?string $nmUsaha = ''): bool
+    {
+        $text = strtoupper(trim(($nama ?? '') . ' ' . ($nmUsaha ?? '')));
+        if ($text === '' || $text === '-') {
+            return false;
+        }
+
+        // Singkatan badan usaha dengan word boundary:
+        // PT, CV, UD, PO, FA, KOP, KSP, KUD
+        if (preg_match('/\b(PT|CV|UD|PO|FA|KOP|KSP|KUD)\b/i', $text)) {
+            return true;
+        }
+
+        // Kata kunci entitas hukum / badan usaha lengkap
+        $badanUsahaKeywords = [
+            'PERSEROAN',
+            'KOPERASI',
+            'PERUMDA',
+            'PERUM',
+            'BUMD',
+            'BUMN',
+            'PERSERO',
+            'YAYASAN',
+            'LEMBAGA',
+            'BADAN USAHA',
+            'BADAN HUKUM',
+            'PEMERINTAH',
+            'PEMKAB',
+            'PEMKOT',
+            'PEMPROV',
+            'DINAS',
+            'KANTOR',
+            'KEMENTERIAN',
+            'SEKRETARIAT',
+            'PERUSAHAAN',
+            'OTOBUS',
+            'USAHA DAGANG',
+            'FIRMA',
+            'COMMANDITAIRE',
+            'MASKAPAI',
+            'TRAYEK'
+        ];
+
+        foreach ($badanUsahaKeywords as $kw) {
+            if (strpos($text, $kw) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+
+/* ============================================================================
  * BAGIAN 1 - TARIF PKB
  * ========================================================================== */
 
@@ -299,6 +364,15 @@ function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $
     // Kendaraan tarif khusus 0,5% (Ambulance, Sosial, Sosial Keagamaan, Kebersihan, dll)
     $isKhusus05     = $isAmbulance || $isSosial;
 
+    // Kendaraan dengan nama bukan badan usaha atau PT tetapi Penggunaan Angkutan umum
+    // Berdasarkan UU HKPD & Kebijakan Samsat NTT, dikenakan tarif Penggunaan Pribadi (1,2%)
+    $namaPemilik    = $kendaraan['nama'] ?? $kendaraan['pemilik'] ?? $kendaraan['NamaPemilik'] ?? '';
+    $nmUsaha        = $kendaraan['nm_usaha'] ?? $kendaraan['NM_USAHA'] ?? '';
+    $isAngkutanUmum = (strpos(strtoupper($kGuna), 'UMUM') !== false);
+    $isBadan        = function_exists('isBadanUsaha') ? isBadanUsaha($namaPemilik, $nmUsaha) : false;
+    $isUmumNonBadan = ($isAngkutanUmum && !$isBadan && !empty($namaPemilik));
+    $kGunaHitung    = $isUmumNonBadan ? 'PRIBADI' : $kGuna;
+
     // 3. TERAPKAN DISKON DP PKB (PENGURANGAN NJKB)
     // Sesuai Pergub: Diskon standar NJKB 17.5% untuk periode berjalan tanpa tunggakan.
     // Jika Disabilitas: Pengurangan tambahan 50% (menjadi 67.5% jika 1 periode, atau 50% jika ada tunggakan).
@@ -359,7 +433,7 @@ function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $
         $isBerjalan = ($index === $indexBerjalan);
         $isNew      = menggunakanTarifBaru($start);
         
-        $tarif = getTarifPkb($kGuna, $isNew, $isKhusus05);
+        $tarif = getTarifPkb($kGunaHitung, $isNew, $isKhusus05);
         $pkbTahun = round($dpPkb * $tarif); // PKB Kotor Tahun Ini
         
         // Tentukan Diskon PKB Tahun Ini
@@ -536,7 +610,8 @@ function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $
         'tahun_berjalan'               => 1,
         'tahun_tunggakan'              => max(count($periods) - 1, 0),
         'tahun_total'                  => count($periods),
-        'peringatan'                   => !$isValidDate ? 'Data SD Notice tidak valid. Perhitungan hanya untuk 1 tahun dengan tarif terkini.' : '',
+        'is_umum_non_badan'            => $isUmumNonBadan,
+        'peringatan'                   => (!$isValidDate ? 'Data SD Notice tidak valid. Perhitungan hanya untuk 1 tahun dengan tarif terkini. ' : '') . ($isUmumNonBadan ? 'Kendaraan Angkutan Umum atas nama perorangan (bukan Badan Usaha / PT) dikenakan tarif PKB Pribadi (1,2%).' : ''),
         'amnesti_aktif'                => $amnestiAktif,
         'amnesti_diskon_pkb_berjalan'  => $amnestiDiskonPkbBerjalan,
         'amnesti_diskon_pkb_tunggakan' => $amnestiDiskonPkbTunggakan,
