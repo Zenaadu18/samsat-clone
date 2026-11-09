@@ -657,6 +657,7 @@ class TaxCalculationService
                     'upt_asal'       => $uptAsal,
                     'nama'           => $nama,
                     'nm_usaha'       => $nmUsaha,
+                    'is_online'      => false,
                 ]
             );
 
@@ -676,7 +677,7 @@ class TaxCalculationService
             $tarifLama = \getTarifPkb($kGunaHitung, false, $isKhusus05) * 100;
             $tarifBaru = \getTarifPkb($kGunaHitung, true, $isKhusus05) * 100;
 
-            // Pokok Kotor (sebelum diskon kanal digital)
+            // Pokok Kotor & Bersih sesuai Pergub 64 (setelah potongan DP 17,5% dan Diskon Taat Pajak)
             $pkbBerjalanKotor = (int)$pkbData['pkb_berjalan_kotor'];
             $pkbTunggakanKotor= (int)$pkbData['pkb_tunggakan_kotor'];
             $pkbBerjalanNet   = (int)$pkbData['pkb_berjalan'];
@@ -693,17 +694,24 @@ class TaxCalculationService
             $biayaStnk = (int)$stnkData['biaya_stnk'];
             $biayaTnkb = (int)$stnkData['biaya_tnkb'];
 
-            // PKB dan Opsen yang ditampilkan di rincian adalah nilai pokok sebelum diskon digital
-            $pkbBerjalan = $pkbBerjalanKotor;
+            // PKB dan Opsen utama menggunakan nilai bersih setelah diskon taat pajak (Pergub 64)
+            $pkbBerjalan  = $pkbBerjalanNet;
             $pkbTunggakan = $pkbTunggakanNet;
-            $pkbTotal = $pkbBerjalan + $pkbTunggakan;
-            $opsenPkb = $opsenBerjalanKotor + (int)($pkbData['opsen_pkb_tunggakan'] ?? 0);
+            $pkbTotal     = $pkbBerjalan + $pkbTunggakan;
+            $opsenPkb     = $opsenBerjalanNet + (int)($pkbData['opsen_pkb_tunggakan'] ?? 0);
 
-            // Total tagihan normal sebelum diskon digital:
+            // Total tagihan utama penetapan Pergub 64:
             $totalByrNormal = $pkbTotal + $dendaPkb + $opsenPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total'];
-            $diskonDigital  = $diskonPkbBerjalan + $diskonOpsenBerjalan;
-            $totalBayarNet  = max(0, $totalByrNormal - $diskonDigital);
             $totalPajak     = $totalByrNormal;
+
+            // Insentif Tambahan Pembayaran Online (PRO NTT / SIGNAL):
+            // Sesuai Pergub 64: Tambahan diskon 5% untuk R2/R3 atau 2% untuk R4+
+            $isRoda23 = (strpos($jenisKend, 'MOTOR') !== false || strpos($kJr, 'MOTOR') !== false || preg_match('/MOTOR|R2|R3/i', $jenisKend));
+            $pctDiskonOnline    = $isRoda23 ? 0.05 : 0.02;
+            $diskonDigitalPkb   = (int)floor($pkbBerjalanKotor * $pctDiskonOnline);
+            $diskonDigitalOpsen = (int)round($diskonDigitalPkb * 0.66);
+            $diskonDigital      = $diskonDigitalPkb + $diskonDigitalOpsen;
+            $totalBayarNet      = max(0, $totalByrNormal - $diskonDigital);
         }
 
         // Cek masa aktif pajak berdasarkan SD Notice (lebih dari 90 hari)
@@ -792,9 +800,11 @@ class TaxCalculationService
             'tahun_total'     => $jumlahTahunPajak,
             'tunggakan_ada'   => $tahunTunggakan > 0,
 
-            'opsen_pkb'          => $opsenPkb,
-            'opsen_pkb_berjalan' => (int)$pkbData['opsen_pkb_berjalan'],
-            'opsen_pkb_tunggakan'=> (int)$pkbData['opsen_pkb_tunggakan'],
+            'opsen_pkb'                 => $opsenPkb,
+            'opsen_pkb_berjalan'        => (int)$pkbData['opsen_pkb_berjalan'],
+            'opsen_pkb_berjalan_kotor'  => (int)($pkbData['opsen_pkb_berjalan_kotor'] ?? $opsenBerjalanKotor),
+            'diskon_opsen_pkb_berjalan' => (int)($pkbData['diskon_opsen_pkb_berjalan'] ?? 0),
+            'opsen_pkb_tunggakan'       => (int)$pkbData['opsen_pkb_tunggakan'],
 
             'denda_pkb'          => $dendaPkb,
             'denda_pkb_total'    => $dendaPkb,

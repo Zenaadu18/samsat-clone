@@ -826,7 +826,7 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                           <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[11px] space-y-1 text-slate-600">
                             <div className="flex justify-between">
                               <span>Opsen Tahun Berjalan:</span>
-                              <span className="font-mono-num font-medium">{formatRupiah(taxData.opsen_pkb_berjalan)}</span>
+                              <span className="font-mono-num font-medium">{formatRupiah(taxData.opsen_pkb_berjalan_kotor || taxData.opsen_pkb_berjalan)}</span>
                             </div>
                             {taxData.opsen_pkb_tunggakan > 0 && (
                               <div className="flex justify-between text-slate-600">
@@ -838,6 +838,12 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                               <div className="flex justify-between text-emerald-700 font-semibold">
                                 <span>Penghapusan Opsen Tunggakan:</span>
                                 <span className="font-mono-num">- {formatRupiah(taxData.diskon_opsen_pkb_tunggakan)}</span>
+                              </div>
+                            )}
+                            {taxData.diskon_opsen_pkb_berjalan > 0 && (
+                              <div className="flex justify-between text-emerald-700 font-semibold">
+                                <span>Keringanan Opsen Berjalan:</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_opsen_pkb_berjalan)}</span>
                               </div>
                             )}
                           </div>
