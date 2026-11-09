@@ -15,7 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate } from '../utils/formatters';
 import { TaxCheckSkeleton } from '../components/SkeletonLoader';
-import { getApiBase } from '../utils/config';
+import { getApiBase, getAuthToken } from '../utils/config';
 
 export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, onSwitchToSimulation }) {
   // 3 Smart Plate Boxes states
@@ -158,13 +158,14 @@ export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, on
     setError(null);
 
     try {
-      const token = localStorage.getItem('infopkb_token') || '';
+      const token = getAuthToken();
       const response = await fetch(`${getApiBase()}/check`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Api-Token': token || '',
           'X-CSRF-TOKEN': window.__SAMSAT_CONFIG__?.csrfToken || '',
         },
         body: JSON.stringify({

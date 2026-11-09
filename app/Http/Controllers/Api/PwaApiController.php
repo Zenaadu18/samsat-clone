@@ -544,7 +544,9 @@ class PwaApiController extends Controller
             if (preg_match('/Bearer\s+(\S+)/i', $header, $matches)) {
                 $token = $matches[1];
             } else {
-                $token = $request->input('api_token');
+                $token = $request->header('X-Api-Token')
+                    ?: $request->header('X-Token')
+                    ?: $request->input('api_token');
             }
 
             if ($token) {

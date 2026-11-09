@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate } from '../utils/formatters';
 import { SimulateSkeleton } from '../components/SkeletonLoader';
-import { getApiBase } from '../utils/config';
+import { getApiBase, getAuthToken } from '../utils/config';
 
 const VEHICLE_TYPES = [
   { value: 'SEPEDA MOTOR R2', label: 'SPM / Sepeda Motor Roda 2', bobot: '1.000', kategori: 'roda23', cc: 125 },
@@ -255,13 +255,14 @@ export default function SimulateTab({ prefillNopol = '', prefillData = null }) {
     }
 
     try {
-      const token = localStorage.getItem('infopkb_token') || '';
+      const token = getAuthToken();
       const response = await fetch(`${getApiBase()}/simulate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Api-Token': token || '',
           'X-CSRF-TOKEN': window.__SAMSAT_CONFIG__?.csrfToken || '',
         },
         body: JSON.stringify(payload),

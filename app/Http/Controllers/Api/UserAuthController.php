@@ -370,7 +370,9 @@ class UserAuthController extends Controller
         if (preg_match('/Bearer\s+(\S+)/i', $header, $matches)) {
             return $matches[1];
         }
-        return $request->input('api_token');
+        return $request->header('X-Api-Token')
+            ?: $request->header('X-Token')
+            ?: $request->input('api_token');
     }
 
     /**

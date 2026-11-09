@@ -11,7 +11,7 @@ import InfoTab from './pages/InfoTab';
 import UserActivityTab from './pages/UserActivityTab';
 import UserLoginModal from './components/UserLoginModal';
 import InfoBannerModal from './components/InfoBannerModal';
-import { getApiBase } from './utils/config';
+import { getApiBase, getAuthToken } from './utils/config';
 import { getDeviceId } from './utils/device';
 
 const ALL_TABS = ['home', 'cek', 'simulasi', 'bbn2', 'njkb', 'riwayat', 'info'];
@@ -45,13 +45,14 @@ function App() {
 
   const handleLogout = useCallback(() => {
     const apiBase = getApiBase();
-    const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
+    const token = getAuthToken();
     if (token) {
       fetch(`${apiBase}/auth/logout`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'X-Api-Token': token,
         },
       }).catch(() => {});
     }
@@ -70,13 +71,14 @@ function App() {
     const apiBase = getApiBase();
 
     const verifySession = () => {
-      const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
+      const token = getAuthToken();
       if (!token) return;
 
       fetch(`${apiBase}/auth/me`, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'X-Api-Token': token,
           'X-Device-Id': getDeviceId(),
         },
       })

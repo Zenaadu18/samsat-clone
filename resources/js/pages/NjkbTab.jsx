@@ -19,7 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate } from '../utils/formatters';
 import { NjkbListSkeleton, TaxCheckSkeleton } from '../components/SkeletonLoader';
-import { getApiBase } from '../utils/config';
+import { getApiBase, getAuthToken } from '../utils/config';
 
 export default function NjkbTab({ onSelectNjkb, onCekPajak, onSimulasi }) {
   const [activeMode, setActiveMode] = useState('plat'); // 'plat' | 'merek'
@@ -130,13 +130,14 @@ export default function NjkbTab({ onSelectNjkb, onCekPajak, onSimulasi }) {
     setHasilPlat(null);
 
     try {
-      const token = localStorage.getItem('infopkb_token') || '';
+      const token = getAuthToken();
       const res = await fetch(
         `${getApiBase()}/njkb/nopol?nopol=${encodeURIComponent(cleanNopol)}`,
         {
           headers: {
             'Accept': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': token ? `Bearer ${token}` : '',
+            'X-Api-Token': token || '',
           }
         }
       );
@@ -164,11 +165,12 @@ export default function NjkbTab({ onSelectNjkb, onCekPajak, onSimulasi }) {
       if (q.trim()) params.append('q', q.trim());
       if (yr) params.append('tahun', yr);
 
-      const token = localStorage.getItem('infopkb_token') || '';
+      const token = getAuthToken();
       const res = await fetch(`${getApiBase()}/njkb?${params.toString()}`, {
         headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Api-Token': token || '',
         }
       });
       const data = await res.json();

@@ -60,3 +60,27 @@ export function getAssetUrl(relativePath = '') {
   return `${getBaseUrl()}/${clean}`;
 }
 
+/**
+ * Mengambil token autentikasi aktif pengguna (dari localStorage atau sessionStorage)
+ */
+export function getAuthToken() {
+  try {
+    return localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token') || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Mengambil data profil pengguna aktif (dari localStorage atau sessionStorage)
+ */
+export function getAuthUser() {
+  try {
+    const raw = localStorage.getItem('infopkb_user') || sessionStorage.getItem('infopkb_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+

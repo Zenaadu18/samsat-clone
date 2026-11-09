@@ -10,7 +10,7 @@ import {
   IconCheck,
   IconArrowRight
 } from '@tabler/icons-react';
-import { getApiBase } from '../utils/config';
+import { getApiBase, getAuthToken } from '../utils/config';
 import { formatRupiah } from '../utils/formatters';
 
 export default function UserActivityTab({ onRepeatSearch }) {
@@ -24,12 +24,13 @@ export default function UserActivityTab({ onRepeatSearch }) {
     setLoading(true);
     try {
       const apiBase = getApiBase();
-      const token = localStorage.getItem('infopkb_token');
+      const token = getAuthToken();
       const url = `${apiBase}/user/activities${showAll ? '?all=1' : ''}`;
       const res = await fetch(url, {
         headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token || ''}`,
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Api-Token': token || '',
         },
       });
 

@@ -16,7 +16,7 @@ import {
   IconInfoCircle
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate } from '../utils/formatters';
-import { getApiBase } from '../utils/config';
+import { getApiBase, getAuthToken } from '../utils/config';
 
 export default function Bbn2Tab({ prefillNopol = '', onSwitchToTaxCheck = null }) {
   const [mode, setMode] = useState('nopol'); // 'nopol' | 'manual'
@@ -167,14 +167,15 @@ export default function Bbn2Tab({ prefillNopol = '', onSwitchToTaxCheck = null }
     }
 
     try {
-      const token = localStorage.getItem('infopkb_token') || '';
+      const token = getAuthToken();
       const apiBase = getApiBase();
       const res = await fetch(`${apiBase}/simulate-bbn2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Api-Token': token || '',
         },
         body: JSON.stringify(payload),
       });
