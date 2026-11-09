@@ -608,6 +608,52 @@ class AdminController extends Controller
         ]);
     }
 
+    public function resetAllUserSessions(Request $request)
+    {
+        if (!Session::get('admin_logged_in')) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        // Target seluruh pengguna dengan role user / non-admin
+        $targetUserIds = DB::table('users')
+            ->where(function ($q) {
+                $q->where('role', 'user')
+                  ->orWhere('role', '!=', 'admin');
+            })
+            ->where(function ($q) {
+                $q->whereNull('role_id')
+                  ->orWhere('role_id', '!=', 1);
+            })
+            ->pluck('id')
+            ->toArray();
+
+        $count = count($targetUserIds);
+
+        if ($count > 0) {
+            DB::table('users')
+                ->whereIn('id', $targetUserIds)
+                ->update([
+                    'device_id'        => null,
+                    'device_name'      => null,
+                    'device_locked_at' => null,
+                    'last_activity_at' => null,
+                    'api_token'        => null, // Putuskan sesi login aktif di PWA
+                    'remember_token'   => null,
+                    'updated_at'       => now(),
+                ]);
+
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->whereIn('user_id', $targetUserIds)->delete();
+            }
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => "Sesi aktif seluruh pengguna (role user) berhasil direset ({$count} akun). Pengguna non-admin akan otomatis logout dan dapat melihat pop-up banner informasi terbaru saat login kembali.",
+            'count'   => $count,
+        ]);
+    }
+
     /* =========================================================================
      * KONTROL BANNER INFORMASI (MULTIPLE BANNERS: GAMBAR / TEKS / KOMBINASI)
      * ======================================================================= */

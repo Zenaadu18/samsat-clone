@@ -388,10 +388,16 @@
                             </h2>
                             <p class="text-xs text-slate-500 mt-1">Daftar pengguna terdaftar yang memiliki izin akses masuk ke aplikasi user.</p>
                         </div>
-                        <button type="button" onclick="openModalUser()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span>Tambah Pengguna Baru</span>
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="confirmResetAllUserSessions()" class="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Putuskan seluruh sesi aktif pengguna (role user) agar user login kembali dan melihat banner terbaru">
+                                <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                <span>Reset Sesi Massal (Role User)</span>
+                            </button>
+                            <button type="button" onclick="openModalUser()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Tambah Pengguna Baru</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filter Bar Pengguna -->
@@ -594,18 +600,30 @@
                                 Kelola pengumuman berupa <b>Gambar (Poster/Flyer)</b>, <b>Pesan Teks</b>, atau <b>Kombinasi Keduanya</b>. Jika terdapat lebih dari 1 banner aktif, aplikasi user otomatis menampilkan slider interaktif dengan tombol navigasi dan gesture geser (swipe).
                             </p>
                         </div>
-                        <button type="button" onclick="openModalBanner()" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-amber-600/20 transition-all flex items-center gap-2 cursor-pointer shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <span>Tambah Banner Baru</span>
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2 shrink-0">
+                            <button type="button" onclick="confirmResetAllUserSessions()" class="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Putuskan seluruh sesi aktif pengguna (role user) agar user login kembali dan melihat banner terbaru">
+                                <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                <span>Reset Sesi Massal User</span>
+                            </button>
+                            <button type="button" onclick="openModalBanner()" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-amber-600/20 transition-all flex items-center gap-2 cursor-pointer shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                <span>Tambah Banner Baru</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Petunjuk Ringkas -->
-                    <div class="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900">
-                        <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>
-                            <b>Format Fleksibel:</b> Banner dapat berupa flyer gambar penuh, teks pengumuman, atau keduanya. Jika seluruh banner dinonaktifkan atau dihapus, popup banner di sisi user tidak akan muncul.
-                        </span>
+                    <div class="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
+                        <div class="flex items-start gap-2.5">
+                            <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>
+                                <b>Format Fleksibel:</b> Banner dapat berupa flyer poster penuh, teks pengumuman, atau keduanya. Pengguna akan melihat banner saat sesi login baru. Untuk memunculkan banner pengumuman terbaru kepada seluruh pengguna aktif secara langsung, gunakan tombol <b>Reset Sesi Massal User</b>.
+                            </span>
+                        </div>
+                        <button type="button" onclick="confirmResetAllUserSessions()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap self-start sm:self-center shrink-0" title="Putuskan seluruh sesi aktif pengguna agar langsung logout">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            <span>Reset Sesi Sekarang</span>
+                        </button>
                     </div>
 
                     <!-- Daftar Banner (Tabel) -->
@@ -2323,6 +2341,34 @@
                 }
             })
             .catch(() => alert('Terjadi kendala jaringan saat mereset perangkat.'));
+        }
+
+        function confirmResetAllUserSessions() {
+            const msg = "Konfirmasi Reset Sesi Massal Seluruh Pengguna:\n\n" +
+                        "Apakah Anda yakin ingin memutuskan (logout) sesi aktif seluruh akun dengan role 'user'?\n\n" +
+                        "• Seluruh akun pengguna (non-admin) akan langsung logout dari perangkat mereka.\n" +
+                        "• Sesi akun Administrator TIDAK akan terpengaruh (tetap aktif login).\n" +
+                        "• Saat pengguna login kembali, mereka langsung melihat pop-up pembaruan banner pengumuman terbaru.\n\n" +
+                        "Lanjutkan proses reset sesi massal?";
+            if (!confirm(msg)) return;
+
+            fetch('{{ route("admin.reset_all_user_sessions") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    alert('Gagal: ' + (res.message || 'Terjadi kesalahan saat memproses permintaan.'));
+                }
+            })
+            .catch(() => alert('Terjadi kendala jaringan saat mereset sesi massal pengguna.'));
         }
 
         function toggleBlockUser(id, currentBlocked) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import MobileFrame from './components/MobileFrame';
 import BottomNav from './components/BottomNav';
@@ -43,63 +43,7 @@ function App() {
   const [banner, setBanner] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
 
-  useEffect(() => {
-    // Verifikasi Token User ke server (dari localStorage atau sessionStorage)
-    const apiBase = getApiBase();
-    const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
-    if (token) {
-      fetch(`${apiBase}/auth/me`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Device-Id': getDeviceId(),
-        },
-      })
-        .then((r) => r.json())
-        .then((res) => {
-          if (res.status === 'success' && res.data) {
-            setCurrentUser(res.data);
-            if (localStorage.getItem('infopkb_token')) {
-              localStorage.setItem('infopkb_user', JSON.stringify(res.data));
-            } else {
-              sessionStorage.setItem('infopkb_user', JSON.stringify(res.data));
-            }
-          } else {
-            // Token hangus, diblokir, atau perangkat tidak cocok
-            handleLogout();
-          }
-        })
-        .catch(() => {});
-    }
-
-    // Ambil Data Banner Pengumuman dari server
-    fetch(`${apiBase}/banner`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.status === 'success' && res.data && res.data.active) {
-          setBanner(res.data);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleLoginSuccess = (user, token) => {
-    setCurrentUser(user);
-    // Banner HANYA muncul saat user baru saja login
-    // Tidak akan ditampilkan lagi ketika halaman direfresh sampai sesi berakhir (logout)
-    const bannerSeenInSession = sessionStorage.getItem('infopkb_banner_session_seen');
-    if (!bannerSeenInSession) {
-      sessionStorage.setItem('infopkb_banner_session_seen', '1');
-      setShowBanner(true);
-    }
-  };
-
-  const handleCloseBanner = () => {
-    sessionStorage.setItem('infopkb_banner_session_seen', '1');
-    setShowBanner(false);
-  };
-
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     const apiBase = getApiBase();
     const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
     if (token) {
@@ -118,6 +62,90 @@ function App() {
     // Hapus status sesi banner saat logout agar login sesi berikutnya dapat melihat banner
     sessionStorage.removeItem('infopkb_banner_session_seen');
     setCurrentUser(null);
+    setShowBanner(false);
+  }, []);
+
+  useEffect(() => {
+    // Verifikasi Token User ke server (dari localStorage atau sessionStorage)
+    const apiBase = getApiBase();
+
+    const verifySession = () => {
+      const token = localStorage.getItem('infopkb_token') || sessionStorage.getItem('infopkb_token');
+      if (!token) return;
+
+      fetch(`${apiBase}/auth/me`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-Id': getDeviceId(),
+        },
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.status === 'success' && res.data) {
+            setCurrentUser(res.data);
+            if (localStorage.getItem('infopkb_token')) {
+              localStorage.setItem('infopkb_user', JSON.stringify(res.data));
+            } else {
+              sessionStorage.setItem('infopkb_user', JSON.stringify(res.data));
+            }
+          } else {
+            // Token hangus, direset massal oleh admin, diblokir, atau perangkat tidak cocok
+            handleLogout();
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Verifikasi awal saat pertama kali mount
+    verifySession();
+
+    // Verifikasi berkala setiap 30 detik & saat window focus (saat tab aktif / layar hp dibuka kembali)
+    const intervalId = setInterval(verifySession, 30000);
+    window.addEventListener('focus', verifySession);
+
+    // Ambil Data Banner Pengumuman dari server
+    fetch(`${apiBase}/banner`)
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.status === 'success' && res.data && res.data.active) {
+          setBanner(res.data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', verifySession);
+    };
+  }, [handleLogout]);
+
+  const handleLoginSuccess = (user, token) => {
+    setCurrentUser(user);
+    // Refresh data banner terbaru dari server agar update yang dipasang admin langsung muncul
+    const apiBase = getApiBase();
+    fetch(`${apiBase}/banner`)
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.status === 'success' && res.data && res.data.active) {
+          setBanner(res.data);
+          sessionStorage.setItem('infopkb_banner_session_seen', '1');
+          setShowBanner(true);
+        } else {
+          sessionStorage.setItem('infopkb_banner_session_seen', '1');
+        }
+      })
+      .catch(() => {
+        const bannerSeenInSession = sessionStorage.getItem('infopkb_banner_session_seen');
+        if (!bannerSeenInSession) {
+          sessionStorage.setItem('infopkb_banner_session_seen', '1');
+          setShowBanner(true);
+        }
+      });
+  };
+
+  const handleCloseBanner = () => {
+    sessionStorage.setItem('infopkb_banner_session_seen', '1');
     setShowBanner(false);
   };
 

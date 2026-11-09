@@ -85,6 +85,7 @@ Route::prefix('admin')->middleware(['throttle:120,1', 'admin.timeout'])->group(f
     Route::post('/toggle-block-user', [AdminController::class, 'toggleBlockUser'])->name('admin.toggle_block_user');
     Route::post('/delete-user', [AdminController::class, 'deleteUser'])->name('admin.delete_user');
     Route::post('/reset-device-user', [AdminController::class, 'resetUserDevice'])->name('admin.reset_device_user');
+    Route::post('/reset-all-user-sessions', [AdminController::class, 'resetAllUserSessions'])->name('admin.reset_all_user_sessions');
 
     // Kontrol Banner Informasi (Multi-Banner: Gambar/Teks/Kombinasi)
     Route::post('/save-banner-item', [AdminController::class, 'saveBannerItem'])->name('admin.save_banner_item');
