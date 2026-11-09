@@ -158,6 +158,71 @@ if (!function_exists('reload_samsat_config')) {
                     $res->free();
                 }
             } catch (\Throwable $e) {}
+        } elseif (class_exists(\Illuminate\Support\Facades\DB::class)) {
+            // Fallback via Laravel DB Facade
+            try {
+                $rows = \Illuminate\Support\Facades\DB::table('konfigurasi')->get();
+                foreach ($rows as $r) {
+                    $dbKonfigurasi[$r->kunci] = $r->nilai;
+                }
+            } catch (\Throwable $e) {}
+
+            try {
+                $rows = \Illuminate\Support\Facades\DB::table('tarif_pkb')->get();
+                if ($rows->isNotEmpty()) {
+                    $dbTarifPkb = [];
+                    foreach ($rows as $r) {
+                        $dbTarifPkb[strtoupper(trim($r->k_guna))] = [
+                            'lama' => (float)$r->tarif_lama,
+                            'baru' => (float)$r->tarif_baru,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            try {
+                $rows = \Illuminate\Support\Facades\DB::table('tarif_swdkllj')->get();
+                if ($rows->isNotEmpty()) {
+                    $dbTarifSwdkllj = [];
+                    foreach ($rows as $r) {
+                        $dbTarifSwdkllj[$r->golongan] = [
+                            'tarif'    => (int)$r->tarif,
+                            'admin'    => (int)$r->admin,
+                            'denda_t1' => (int)$r->denda_t1,
+                            'denda_t2' => (int)$r->denda_t2,
+                            'denda_t3' => (int)$r->denda_t3,
+                            'denda_t4' => (int)$r->denda_t4,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            try {
+                $rows = \Illuminate\Support\Facades\DB::table('tarif_stnk_tnkb')->get();
+                if ($rows->isNotEmpty()) {
+                    $dbTarifStnkTnkb = [];
+                    foreach ($rows as $r) {
+                        $dbTarifStnkTnkb[strtoupper($r->jenis)] = [
+                            'biaya_stnk' => (int)$r->biaya_stnk,
+                            'biaya_tnkb' => (int)$r->biaya_tnkb,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            try {
+                $rows = \Illuminate\Support\Facades\DB::table('klasifikasi_kendaraan')->orderByRaw('LENGTH(keyword) DESC')->get();
+                if ($rows->isNotEmpty()) {
+                    $dbKlasifikasiKendaraan = [];
+                    foreach ($rows as $r) {
+                        $dbKlasifikasiKendaraan[] = [
+                            'keyword'  => strtoupper($r->keyword),
+                            'golongan' => $r->golongan_swdkllj,
+                            'jenis'    => strtoupper($r->jenis_kend),
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {}
         }
 
         // Tulis ke $GLOBALS agar dapat diakses di seluruh aplikasi

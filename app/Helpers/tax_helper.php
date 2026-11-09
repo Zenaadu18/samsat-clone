@@ -1299,9 +1299,10 @@ function cariNjkbData(?mysqli $conn, string $merk, string $tipe, int $tahun): ar
         }
     }
 
-    // Level 9: Fallback Tingkat Lanjut via Laravel Query Builder (DB Facade)
+    // Fallback Tingkat Lanjut via Laravel Query Builder (DB Facade) jika mysqli gagal atau tidak menemukan
     if (class_exists(\Illuminate\Support\Facades\DB::class)) {
         try {
+            // Level DB 1: Exact Match As-Is
             $dbRow = \Illuminate\Support\Facades\DB::table('njkb_data')
                 ->whereIn('merk', $merkAliases)
                 ->where('tahun_buat', $tahun)
@@ -1319,38 +1320,142 @@ function cariNjkbData(?mysqli $conn, string $merk, string $tipe, int $tahun): ar
                 ];
             }
 
-            $tipeCleanAlpha = preg_replace('/[^A-Z0-9]/', '', strtoupper($tipeTrim));
-            $dbRow2 = \Illuminate\Support\Facades\DB::table('njkb_data')
+            // Level DB 2: Exact Normalisasi Spasi (Tahun Sama) - contoh: KIJANG STANDARD LF 60 / 2.4 DIESEL -> KIJANGSTANDARDLF60/2.4DIESEL
+            $dbRowSpasi = \Illuminate\Support\Facades\DB::table('njkb_data')
                 ->whereIn('merk', $merkAliases)
                 ->where('tahun_buat', $tahun)
-                ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha])
+                ->whereRaw("REPLACE(tipe, ' ', '') = ?", [$tipeNoSpace])
                 ->first();
-            if ($dbRow2) {
+            if ($dbRowSpasi) {
                 return [
-                    'njkb'        => (float)$dbRow2->njkb,
-                    'bobot'       => (float)$dbRow2->bobot,
-                    'tipe'        => $dbRow2->tipe,
-                    'merk'        => $dbRow2->merk,
-                    'tahun_buat'  => (int)$dbRow2->tahun_buat,
-                    'sumber'      => 'Normalisasi DB: ' . $dbRow2->tipe,
+                    'njkb'        => (float)$dbRowSpasi->njkb,
+                    'bobot'       => (float)$dbRowSpasi->bobot,
+                    'tipe'        => $dbRowSpasi->tipe,
+                    'merk'        => $dbRowSpasi->merk,
+                    'tahun_buat'  => (int)$dbRowSpasi->tahun_buat,
+                    'sumber'      => 'Normalisasi Spasi DB: ' . $dbRowSpasi->tipe,
                     'is_estimasi' => false,
                 ];
             }
 
-            $dbRow3 = \Illuminate\Support\Facades\DB::table('njkb_data')
+            // Level DB 3: Normalisasi Alphanumeric Penuh (Hapus spasi, strip, slash, titik, kurung)
+            $tipeCleanAlpha = preg_replace('/[^A-Z0-9]/', '', strtoupper($tipeTrim));
+            if (!empty($tipeCleanAlpha)) {
+                $dbRowAlpha = \Illuminate\Support\Facades\DB::table('njkb_data')
+                    ->whereIn('merk', $merkAliases)
+                    ->where('tahun_buat', $tahun)
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '.', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha])
+                    ->first();
+                if ($dbRowAlpha) {
+                    return [
+                        'njkb'        => (float)$dbRowAlpha->njkb,
+                        'bobot'       => (float)$dbRowAlpha->bobot,
+                        'tipe'        => $dbRowAlpha->tipe,
+                        'merk'        => $dbRowAlpha->merk,
+                        'tahun_buat'  => (int)$dbRowAlpha->tahun_buat,
+                        'sumber'      => 'Normalisasi Penuh DB: ' . $dbRowAlpha->tipe,
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
+
+            // Level DB 4: Sequential Wildcard / Pola Berurutan (Tahun Sama)
+            if (!empty($seqPattern)) {
+                $dbRowSeq = \Illuminate\Support\Facades\DB::table('njkb_data')
+                    ->whereIn('merk', $merkAliases)
+                    ->where('tahun_buat', $tahun)
+                    ->whereRaw("REPLACE(tipe, ' ', '') LIKE ?", [$seqPattern])
+                    ->first();
+                if ($dbRowSeq) {
+                    return [
+                        'njkb'        => (float)$dbRowSeq->njkb,
+                        'bobot'       => (float)$dbRowSeq->bobot,
+                        'tipe'        => $dbRowSeq->tipe,
+                        'merk'        => $dbRowSeq->merk,
+                        'tahun_buat'  => (int)$dbRowSeq->tahun_buat,
+                        'sumber'      => 'Pola Berurutan DB: ' . $dbRowSeq->tipe,
+                        'is_estimasi' => false,
+                    ];
+                }
+            }
+
+            // Level DB 5: Full LIKE Tanpa Spasi (Tahun Sama)
+            $dbRowLike = \Illuminate\Support\Facades\DB::table('njkb_data')
                 ->whereIn('merk', $merkAliases)
-                ->whereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha])
+                ->where('tahun_buat', $tahun)
+                ->whereRaw("REPLACE(tipe, ' ', '') LIKE ?", [$tLikeNoSpace])
+                ->first();
+            if ($dbRowLike) {
+                return [
+                    'njkb'        => (float)$dbRowLike->njkb,
+                    'bobot'       => (float)$dbRowLike->bobot,
+                    'tipe'        => $dbRowLike->tipe,
+                    'merk'        => $dbRowLike->merk,
+                    'tahun_buat'  => (int)$dbRowLike->tahun_buat,
+                    'sumber'      => 'LIKE Spasi DB: ' . $dbRowLike->tipe,
+                    'is_estimasi' => false,
+                ];
+            }
+
+            // Level DB 6: Normalisasi Spasi / Alpha (Tahun Terdekat)
+            $dbRowNear = \Illuminate\Support\Facades\DB::table('njkb_data')
+                ->whereIn('merk', $merkAliases)
+                ->where(function($q) use ($tipeNoSpace, $tipeCleanAlpha) {
+                    $q->whereRaw("REPLACE(tipe, ' ', '') = ?", [$tipeNoSpace]);
+                    if (!empty($tipeCleanAlpha)) {
+                        $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(tipe, ' ', ''), '-', ''), '/', ''), '.', ''), '(', ''), ')', '') = ?", [$tipeCleanAlpha]);
+                    }
+                })
                 ->orderByRaw('ABS(tahun_buat - ?)', [$tahun])
                 ->first();
-            if ($dbRow3) {
+            if ($dbRowNear) {
                 return [
-                    'njkb'        => (float)$dbRow3->njkb,
-                    'bobot'       => (float)$dbRow3->bobot,
-                    'tipe'        => $dbRow3->tipe,
-                    'merk'        => $dbRow3->merk,
-                    'tahun_buat'  => (int)$dbRow3->tahun_buat,
-                    'sumber'      => 'Tahun Terdekat DB: ' . $dbRow3->tipe,
+                    'njkb'        => (float)$dbRowNear->njkb,
+                    'bobot'       => (float)$dbRowNear->bobot,
+                    'tipe'        => $dbRowNear->tipe,
+                    'merk'        => $dbRowNear->merk,
+                    'tahun_buat'  => (int)$dbRowNear->tahun_buat,
+                    'sumber'      => 'Tahun Terdekat DB: ' . $dbRowNear->tipe,
                     'is_estimasi' => false,
+                ];
+            }
+
+            // Level DB 7: Keyword Model Unik
+            if (!empty($keywords)) {
+                foreach ($keywords as $kw) {
+                    $dbRowKw = \Illuminate\Support\Facades\DB::table('njkb_data')
+                        ->whereIn('merk', $merkAliases)
+                        ->where('tipe', 'LIKE', '%' . $kw . '%')
+                        ->orderByRaw('ABS(tahun_buat - ?)', [$tahun])
+                        ->first();
+                    if ($dbRowKw) {
+                        return [
+                            'njkb'        => (float)$dbRowKw->njkb,
+                            'bobot'       => (float)$dbRowKw->bobot,
+                            'tipe'        => $dbRowKw->tipe,
+                            'merk'        => $dbRowKw->merk,
+                            'tahun_buat'  => (int)$dbRowKw->tahun_buat,
+                            'sumber'      => 'Model ' . $kw . ' DB (' . $dbRowKw->tipe . ')',
+                            'is_estimasi' => false,
+                        ];
+                    }
+                }
+            }
+
+            // Level DB 8: Fallback Merk Sama (Tahun Terdekat)
+            $dbRowMerk = \Illuminate\Support\Facades\DB::table('njkb_data')
+                ->whereIn('merk', $merkAliases)
+                ->orderByRaw('ABS(tahun_buat - ?)', [$tahun])
+                ->first();
+            if ($dbRowMerk) {
+                return [
+                    'njkb'        => (float)$dbRowMerk->njkb,
+                    'bobot'       => (float)$dbRowMerk->bobot,
+                    'tipe'        => $dbRowMerk->tipe,
+                    'merk'        => $dbRowMerk->merk,
+                    'tahun_buat'  => (int)$dbRowMerk->tahun_buat,
+                    'sumber'      => 'Estimasi Merk DB: ' . $dbRowMerk->tipe,
+                    'is_estimasi' => true,
                 ];
             }
         } catch (\Throwable $eDb) {

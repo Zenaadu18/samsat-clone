@@ -397,17 +397,33 @@ class TaxCalculationService
         }
 
         $njub = 0.0;
-        if ($rubahBentuk !== '' && $rubahBentuk !== '-' && $conn) {
+        if ($rubahBentuk !== '' && $rubahBentuk !== '-') {
             $tahunCari = $tahun < 2006 ? 2006 : $tahun;
-            $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
-            if ($stmtNjub) {
-                $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
-                $stmtNjub->execute();
-                $rowNjub = $stmtNjub->get_result()->fetch_assoc();
-                $stmtNjub->close();
-                if ($rowNjub) {
-                    $njub = (float)$rowNjub['nilai'];
+            if ($conn && $conn instanceof \mysqli && !$conn->connect_error) {
+                $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
+                if ($stmtNjub) {
+                    $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
+                    $stmtNjub->execute();
+                    $rowNjub = $stmtNjub->get_result()->fetch_assoc();
+                    $stmtNjub->close();
+                    if ($rowNjub) {
+                        return (float)$rowNjub['nilai'];
+                    }
                 }
+            }
+
+            // Fallback via Laravel Query Builder (DB Facade)
+            if (class_exists(\Illuminate\Support\Facades\DB::class)) {
+                try {
+                    $rowDb = \Illuminate\Support\Facades\DB::table('njmkb_data')
+                        ->where('rubah_bentuk', $rubahBentuk)
+                        ->where('jenis_dasar', $jenisKend)
+                        ->where('tahun', $tahunCari)
+                        ->first();
+                    if ($rowDb) {
+                        return (float)$rowDb->nilai;
+                    }
+                } catch (\Throwable $e) {}
             }
         }
         return $njub;
@@ -586,19 +602,9 @@ class TaxCalculationService
             }
 
             // NJUB (Nilai Jual Ubah Bentuk) jika NJKB dari database lokal
-            $njub = 0;
-            if (!$isFromApi && $rubahBentuk !== '' && $rubahBentuk !== '-' && $conn) {
-                $tahunCari = $tahun < 2006 ? 2006 : $tahun;
-                $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
-                if ($stmtNjub) {
-                    $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
-                    $stmtNjub->execute();
-                    $rowNjub = $stmtNjub->get_result()->fetch_assoc();
-                    $stmtNjub->close();
-                    if ($rowNjub) {
-                        $njub = (float)$rowNjub['nilai'];
-                    }
-                }
+            $njub = 0.0;
+            if (!$isFromApi && $rubahBentuk !== '' && $rubahBentuk !== '-') {
+                $njub = $this->findNjub($rubahBentuk, $jenisKend, $tahun);
             }
 
             $dpPkb = ($njkb + $njub) * $bobot;
