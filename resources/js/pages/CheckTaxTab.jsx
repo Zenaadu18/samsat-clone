@@ -214,8 +214,15 @@ TOTAL ESTIMASI BAYAR: Rp 0\n`;
 - Denda PKB: ${formatRupiah(d.denda_pkb || 0)}
 - Denda Opsen PKB: ${formatRupiah(d.denda_opsen_pkb || d.denda_opsen || 0)}
 - SWDKLLJ: ${formatRupiah(d.swdkllj || 0)} ${d.denda_swdkllj > 0 ? `(Denda: ${formatRupiah(d.denda_swdkllj)})` : ''}
-${d.biaya_stnk_total > 0 ? `- Biaya STNK/TNKB: ${formatRupiah(d.biaya_stnk_total)}\n` : ''}${d.amnesti_total_potongan > 0 ? `- Keringanan Amnesti: -${formatRupiah(d.amnesti_total_potongan)}\n` : ''}--------------------------------
-TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
+${d.biaya_stnk_total > 0 ? `- Biaya STNK/TNKB: ${formatRupiah(d.biaya_stnk_total)}\n` : ''}--------------------------------
+TOTAL TAGIHAN: ${formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar)}\n`;
+
+      if (d.diskon_digital > 0 || (d.total_setelah_diskon && d.total_setelah_diskon < (d.total_pajak || d.total_bayar))) {
+        const diskon = d.diskon_digital || ((d.total_pajak || d.total_bayar) - d.total_setelah_diskon);
+        const bayarNet = d.total_setelah_diskon || ((d.total_pajak || d.total_bayar) - diskon);
+        text += `- Diskon Pembayaran Digital PRO NTT: -${formatRupiah(diskon)}\n`;
+        text += `TOTAL BAYAR (SETELAH DISKON): ${formatRupiah(bayarNet)}\n`;
+      }
     }
 
     text += `\nDihitung via Aplikasi Pajak.In • © ${new Date().getFullYear()} @sena`;
@@ -373,12 +380,8 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
         ['7. PNBP STNK & TNKB', formatRupiah(d.biaya_stnk_total || 0)],
       ];
 
-      if (d.amnesti_total_potongan > 0) {
-        items.push(['✨ Potongan Keringanan', `- ${formatRupiah(d.amnesti_total_potongan)}`]);
-      }
-
       items.forEach(([label, val]) => {
-        ctx.fillStyle = label.includes('Potongan') ? '#059669' : '#475569';
+        ctx.fillStyle = '#475569';
         ctx.fillText(label, 40, y);
         const textWidth = ctx.measureText(val).width;
         ctx.fillText(val, 760 - textWidth, y);
@@ -386,28 +389,63 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
       });
     }
 
-    // Box Total
-    ctx.fillStyle = '#ecfdf5';
-    ctx.strokeStyle = '#10b981';
+    // Box Total Tagihan (Nilai Sebelum Diskon)
+    ctx.fillStyle = '#f8fafc';
+    ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 2;
     if (ctx.roundRect) {
       ctx.beginPath();
-      ctx.roundRect(40, y + 25, 720, 80, 12);
+      ctx.roundRect(40, y + 15, 720, 75, 12);
       ctx.fill();
       ctx.stroke();
     } else {
-      ctx.fillRect(40, y + 25, 720, 80);
-      ctx.strokeRect(40, y + 25, 720, 80);
+      ctx.fillRect(40, y + 15, 720, 75);
+      ctx.strokeRect(40, y + 15, 720, 75);
     }
 
-    ctx.fillStyle = '#065f46';
-    ctx.font = 'bold 17px sans-serif';
-    ctx.fillText('TOTAL ESTIMASI TAGIHAN', 65, y + 72);
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText('TOTAL ESTIMASI TAGIHAN', 65, y + 58);
 
-    ctx.font = 'bold 26px monospace';
-    const totStr = formatRupiah(d.total_bayar || d.total_pajak);
+    ctx.font = 'bold 24px monospace';
+    const totStr = formatRupiah(d.total_pajak || d.total_tagihan || d.total_bayar);
     const totWidth = ctx.measureText(totStr).width;
-    ctx.fillText(totStr, 735 - totWidth, y + 73);
+    ctx.fillText(totStr, 735 - totWidth, y + 59);
+
+    y += 95;
+
+    // Box Diskon Pembayaran Digital jika ada
+    const hasDiskon = !d.is_pajak_aktif && (d.diskon_digital > 0 || (d.total_setelah_diskon && d.total_setelah_diskon < (d.total_pajak || d.total_bayar)));
+    if (hasDiskon) {
+      const diskonVal = d.diskon_digital || ((d.total_pajak || d.total_bayar) - d.total_setelah_diskon);
+      const bayarNet = d.total_setelah_diskon || ((d.total_pajak || d.total_bayar) - diskonVal);
+
+      ctx.fillStyle = '#ecfdf5';
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(40, y + 5, 720, 80, 12);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(40, y + 5, 720, 80);
+        ctx.strokeRect(40, y + 5, 720, 80);
+      }
+
+      ctx.fillStyle = '#065f46';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText('TOTAL BAYAR (SETELAH DISKON)', 65, y + 42);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#047857';
+      ctx.fillText(`Diskon Pembayaran Digital PRO NTT: -${formatRupiah(diskonVal)}`, 65, y + 66);
+
+      ctx.font = 'bold 24px monospace';
+      ctx.fillStyle = '#065f46';
+      const netStr = formatRupiah(bayarNet);
+      const netWidth = ctx.measureText(netStr).width;
+      ctx.fillText(netStr, 735 - netWidth, y + 52);
+    }
 
     // Footer Catatan & Copyright
     ctx.fillStyle = '#94a3b8';
@@ -721,10 +759,10 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
                                 <span className="font-mono-num font-medium">{formatRupiah(taxData.pkb_tunggakan)}</span>
                               </div>
                             )}
-                            {(taxData.diskon_pkb_berjalan > 0 || taxData.diskon_pkb_tunggakan > 0) && (
+                            {(taxData.diskon_digital_pkb > 0 || taxData.diskon_pkb_berjalan > 0 || taxData.diskon_pkb_tunggakan > 0) && (
                               <div className="flex justify-between text-emerald-700 font-semibold">
-                                <span>Potongan Diskon PKB:</span>
-                                <span className="font-mono-num">- {formatRupiah((taxData.diskon_pkb_berjalan || 0) + (taxData.diskon_pkb_tunggakan || 0))}</span>
+                                <span>Diskon Digital PKB:</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_digital_pkb || (taxData.diskon_pkb_berjalan || 0) + (taxData.diskon_pkb_tunggakan || 0))}</span>
                               </div>
                             )}
                           </div>
@@ -759,6 +797,12 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
                               <div className="flex justify-between text-amber-700">
                                 <span>Opsen Masa Tunggakan:</span>
                                 <span className="font-mono-num font-medium">{formatRupiah(taxData.opsen_pkb_tunggakan)}</span>
+                              </div>
+                            )}
+                            {(taxData.diskon_digital_opsen > 0 || taxData.diskon_opsen_pkb_berjalan > 0) && (
+                              <div className="flex justify-between text-emerald-700 font-semibold">
+                                <span>Diskon Digital Opsen:</span>
+                                <span className="font-mono-num">- {formatRupiah(taxData.diskon_digital_opsen || taxData.diskon_opsen_pkb_berjalan)}</span>
                               </div>
                             )}
                           </div>
@@ -881,26 +925,11 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
                         </div>
                       )}
 
-                      {/* Potongan Keringanan Jika Aktif */}
-                      {taxData.amnesti_total_potongan > 0 && (
-                        <div 
-                          className="flex justify-between items-center border border-emerald-300 p-2.5 rounded-xl text-xs text-emerald-800 font-bold"
-                          style={{
-                            backgroundColor: '#ecfdf5',
-                            background: 'linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%)',
-                          }}
-                        >
-                          <span>✨ Anda Hemat</span>
-                          <span className="font-mono-num text-emerald-700">
-                            - {formatRupiah(taxData.amnesti_total_potongan)}
-                          </span>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
 
-                {/* Total Highlight */}
+                {/* Total Highlight (Tarif Normal Sebelum Diskon) */}
                 <div className="border-t border-slate-200 pt-3 mt-2 flex justify-between items-baseline">
                   <div>
                     <span className="text-xs font-bold text-slate-800 block">TOTAL TAGIHAN</span>
@@ -912,6 +941,31 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_bayar || d.total_pajak)}\n`;
                     {formatRupiah(taxData.total_pajak)}
                   </span>
                 </div>
+
+                {/* Diskon Pembayaran Digital & Total Bayar Online (Diletakkan di Bawah Total Tagihan) */}
+                {!taxData.is_pajak_aktif && (taxData.diskon_digital > 0 || (taxData.total_setelah_diskon && taxData.total_setelah_diskon < taxData.total_pajak)) && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/90 shadow-2xs space-y-2.5">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-emerald-800 flex items-center gap-1.5">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-200 text-emerald-800 text-[10px] font-black">%</span>
+                        Diskon Pembayaran Digital PRO NTT
+                      </span>
+                      <span className="font-mono-num font-bold text-emerald-700">
+                        - {formatRupiah(taxData.diskon_digital || (taxData.total_pajak - taxData.total_setelah_diskon))}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-emerald-200/70 flex justify-between items-baseline">
+                      <div>
+                        <span className="text-xs font-black text-emerald-950 block">TOTAL BAYAR (SETELAH DISKON)</span>
+                        <span className="text-[10px] text-emerald-700 font-medium block">Berlaku untuk pembayaran via QRIS / Kanal Digital Bank NTT</span>
+                      </div>
+                      <span className="font-mono-num text-lg sm:text-xl font-black text-emerald-700">
+                        {formatRupiah(taxData.total_setelah_diskon || (taxData.total_pajak - (taxData.diskon_digital || 0)))}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

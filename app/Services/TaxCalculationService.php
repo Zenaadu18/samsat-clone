@@ -473,10 +473,19 @@ class TaxCalculationService
             $dpPkb = $njkb * $bobot;
 
             // Rincian resmi langsung dari penetapan BPAD NTT Bank NTT
-            $pkbBerjalan  = (int)$apiTaxDetail['pkb'];
+            $pkbBerjalanKotor = (int)($apiTaxDetail['total_byrprov'] ?? $apiTaxDetail['pkb']);
+            $pkbBerjalanNet   = (int)$apiTaxDetail['pkb'];
+            $diskonPkbBerjalan= max(0, $pkbBerjalanKotor - $pkbBerjalanNet);
+
             $pkbTunggakan = (int)($apiTaxDetail['tpkb'] ?? 0);
+            $pkbBerjalan  = $pkbBerjalanKotor; // Pokok sebelum diskon untuk rincian resmi
             $pkbTotal     = $pkbBerjalan + $pkbTunggakan;
-            $opsenPkb     = (int)($apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalan * 0.66)));
+
+            $opsenBerjalanKotor = (int)($apiTaxDetail['total_byropsen'] ?? $apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalanKotor * 0.66)));
+            $opsenBerjalanNet   = (int)($apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalanNet * 0.66)));
+            $diskonOpsenBerjalan= max(0, $opsenBerjalanKotor - $opsenBerjalanNet);
+            $opsenPkb           = $opsenBerjalanKotor; // Pokok sebelum diskon untuk rincian resmi
+
             $dendaPkb     = (int)($apiTaxDetail['dpkb'] ?? 0);
             $dendaOpsenPkb= (int)($apiTaxDetail['opsen_dpkb'] ?? 0);
 
@@ -496,9 +505,12 @@ class TaxCalculationService
                 'keterangan' => ($biayaStnk > 0) ? 'Masa Berlaku STNK Habis' : 'STNK Masih Berlaku'
             ];
 
-            $totalPajak = (int)($apiTaxDetail['total_bayar'] ?? ($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']));
-            $totalByrNormal = (int)($apiTaxDetail['total_byr'] ?? $totalPajak);
-            $sumPkbNor = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
+            // TOTAL TAGIHAN SEBELUM DISKON (Total Tagihan Normal Samsat)
+            $totalByrNormal = (int)($apiTaxDetail['total_byr'] ?? ($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']));
+            $totalBayarNet  = (int)($apiTaxDetail['total_bayar'] ?? ($pkbBerjalanNet + $pkbTunggakan + $opsenBerjalanNet + $swdkllj + $dendaSwdkllj + $stnkData['total']));
+            $diskonDigital  = max(0, $totalByrNormal - $totalBayarNet);
+            $totalPajak     = $totalByrNormal;
+            $sumPkbNor      = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
 
             $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
             $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
@@ -509,15 +521,16 @@ class TaxCalculationService
 
             $pkbData = [
                 'pkb_berjalan'               => $pkbBerjalan,
-                'pkb_berjalan_kotor'         => (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan),
-                'diskon_pkb_berjalan'        => max(0, (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan) - $pkbBerjalan),
+                'pkb_berjalan_kotor'         => $pkbBerjalanKotor,
+                'diskon_pkb_berjalan'        => $diskonPkbBerjalan,
                 'pkb_tunggakan'              => $pkbTunggakan,
-                'pkb_tunggakan_kotor'        => max(0, $sumPkbNor - (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan)),
-                'diskon_pkb_tunggakan'       => max(0, $sumPkbNor - (int)($apiTaxDetail['total_byrprov'] ?? $pkbBerjalan)),
+                'pkb_tunggakan_kotor'        => max(0, $sumPkbNor - $pkbBerjalanKotor),
+                'diskon_pkb_tunggakan'       => max(0, $sumPkbNor - $pkbBerjalanKotor),
                 'pkb_total'                  => $pkbTotal,
                 'opsen_pkb'                  => $opsenPkb,
-                'opsen_pkb_berjalan'         => $opsenPkb,
+                'opsen_pkb_berjalan'         => $opsenBerjalanKotor,
                 'opsen_pkb_tunggakan'        => 0,
+                'diskon_opsen_pkb_berjalan'  => $diskonOpsenBerjalan,
                 'denda_pkb'                  => $dendaPkb,
                 'denda_pkb_total'            => $dendaPkb,
                 'denda_pkb_berjalan'         => 0,
@@ -627,18 +640,34 @@ class TaxCalculationService
             $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
             $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
 
-            $pkbBerjalan = (int)$pkbData['pkb_berjalan'];
-            $pkbTunggakan = (int)$pkbData['pkb_tunggakan'];
-            $pkbTotal = (int)$pkbData['pkb_total'];
+            // Pokok Kotor (sebelum diskon kanal digital)
+            $pkbBerjalanKotor = (int)$pkbData['pkb_berjalan_kotor'];
+            $pkbTunggakanKotor= (int)$pkbData['pkb_tunggakan_kotor'];
+            $pkbBerjalanNet   = (int)$pkbData['pkb_berjalan'];
+            $pkbTunggakanNet  = (int)$pkbData['pkb_tunggakan'];
+            $diskonPkbBerjalan= (int)($pkbData['diskon_pkb_berjalan'] ?? 0);
+
+            $opsenBerjalanKotor = (int)($pkbData['opsen_pkb_berjalan_kotor'] ?? floor($pkbBerjalanKotor * 0.66));
+            $opsenBerjalanNet   = (int)($pkbData['opsen_pkb_berjalan'] ?? floor($pkbBerjalanNet * 0.66));
+            $diskonOpsenBerjalan= (int)($pkbData['diskon_opsen_pkb_berjalan'] ?? 0);
 
             $dendaPkb = (int)$pkbData['denda_pkb_total'];
-            $opsenPkb = (int)$pkbData['opsen_pkb'];
             $dendaOpsenPkb = (int)$pkbData['denda_opsen'];
 
             $biayaStnk = (int)$stnkData['biaya_stnk'];
             $biayaTnkb = (int)$stnkData['biaya_tnkb'];
 
-            $totalPajak = $pkbTotal + $dendaPkb + $opsenPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total'];
+            // PKB dan Opsen yang ditampilkan di rincian adalah nilai pokok sebelum diskon digital
+            $pkbBerjalan = $pkbBerjalanKotor;
+            $pkbTunggakan = $pkbTunggakanNet;
+            $pkbTotal = $pkbBerjalan + $pkbTunggakan;
+            $opsenPkb = $opsenBerjalanKotor + (int)($pkbData['opsen_pkb_tunggakan'] ?? 0);
+
+            // Total tagihan normal sebelum diskon digital:
+            $totalByrNormal = $pkbTotal + $dendaPkb + $opsenPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total'];
+            $diskonDigital  = $diskonPkbBerjalan + $diskonOpsenBerjalan;
+            $totalBayarNet  = max(0, $totalByrNormal - $diskonDigital);
+            $totalPajak     = $totalByrNormal;
         }
 
         // Cek masa aktif pajak berdasarkan SD Notice (lebih dari 90 hari)
@@ -657,6 +686,13 @@ class TaxCalculationService
         // Jika masa pajak masih aktif lebih dari 90 hari, tagihan saat ini adalah Rp 0
         if ($isLebih90Hari) {
             $totalPajak = 0;
+            $totalByrNormal = 0;
+            $totalBayarNet = 0;
+            $diskonDigital = 0;
+            $diskonPkbBerjalan = 0;
+            $diskonOpsenBerjalan = 0;
+            $pkbBerjalanNet = 0;
+            $opsenBerjalanNet = 0;
             $pkbTotal = 0;
             $pkbBerjalan = 0;
             $pkbTunggakan = 0;
@@ -764,8 +800,16 @@ class TaxCalculationService
             'amnesti_denda_dibebaskan'    => (int)($pkbData['amnesti_denda_dibebaskan'] ?? 0),
             'amnesti_total_potongan'      => (int)$totalPenghematanLengkap,
 
-            'total_pajak'      => (int)$totalPajak,
-            'total_bayar'      => (int)$totalPajak,
+            'total_pajak'          => (int)$totalPajak,
+            'total_tagihan'        => (int)$totalPajak,
+            'total_bayar'          => (int)$totalPajak,
+            'total_setelah_diskon' => (int)$totalBayarNet,
+            'total_bayar_digital'  => (int)$totalBayarNet,
+            'diskon_digital'       => (int)$diskonDigital,
+            'diskon_digital_pkb'   => (int)$diskonPkbBerjalan,
+            'diskon_digital_opsen' => (int)$diskonOpsenBerjalan,
+            'pkb_net'              => (int)$pkbBerjalanNet,
+            'opsen_net'            => (int)$opsenBerjalanNet,
         ];
     }
 
