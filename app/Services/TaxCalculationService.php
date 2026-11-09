@@ -720,10 +720,47 @@ class TaxCalculationService
         $isLebih90Hari = false;
         $sisaHariAktif = 0;
 
-        if ($tglNotice && $tglNotice > $today) {
-            $sisaHariAktif = (int)$today->diff($tglNotice)->days;
-            if ($sisaHariAktif > 90) {
-                $isLebih90Hari = true;
+        $keteranganTempo = '';
+        $statusTempoKategori = 'hari_h'; // 'lebih_awal' | 'hari_h' | 'terlambat' | 'aktif'
+        $selisihHariTempo = 0;
+        $selisihBulanTempo = 0;
+        $selisihTahunTempo = 0;
+
+        if ($tglNotice) {
+            if ($tglNotice < $today) {
+                $diff = $tglNotice->diff($today);
+                $selisihTahunTempo = (int)$diff->y;
+                $selisihBulanTempo = (int)$diff->m;
+                $selisihHariTempo  = (int)$diff->d;
+                $statusTempoKategori = 'terlambat';
+
+                $parts = [];
+                if ($diff->y > 0) {
+                    $parts[] = "{$diff->y} Tahun";
+                }
+                if ($diff->m > 0) {
+                    $parts[] = "{$diff->m} Bulan";
+                }
+                if ($diff->d > 0) {
+                    $parts[] = "{$diff->d} Hari";
+                }
+                if (empty($parts)) {
+                    $parts[] = "0 Hari";
+                }
+                $keteranganTempo = 'Terlambat ' . implode(' ', $parts);
+            } elseif ($tglNotice > $today) {
+                $selisihHariTempo = (int)$today->diff($tglNotice)->days;
+                if ($selisihHariTempo > 90) {
+                    $isLebih90Hari = true;
+                    $statusTempoKategori = 'aktif';
+                } else {
+                    $statusTempoKategori = 'lebih_awal';
+                }
+                $sisaHariAktif = $selisihHariTempo;
+                $keteranganTempo = "Bayar {$selisihHariTempo} Hari Lebih Awal";
+            } else {
+                $statusTempoKategori = 'hari_h';
+                $keteranganTempo = 'Jatuh Tempo Hari Ini';
             }
         }
 
@@ -777,10 +814,16 @@ class TaxCalculationService
             'sd_notice'       => $sdNotice,
             'sd_stnk'         => $sdStnk,
 
-            'is_pajak_aktif'  => $isLebih90Hari,
-            'sisa_hari_aktif' => $sisaHariAktif,
-            'status_pajak'    => $isLebih90Hari ? 'aktif' : ($tglNotice && $tglNotice < $today ? 'menunggak' : 'jatuh_tempo'),
-            'pesan_aktif'     => $isLebih90Hari ? 'Pajak Kendaraan Masih Aktif' : '',
+            'is_pajak_aktif'          => $isLebih90Hari,
+            'sisa_hari_aktif'         => $sisaHariAktif,
+            'keterangan_tempo'        => $keteranganTempo,
+            'status_tempo_kategori'   => $statusTempoKategori,
+            'selisih_hari_tempo'      => $selisihHariTempo,
+            'selisih_bulan_tempo'     => $selisihBulanTempo,
+            'selisih_tahun_tempo'     => $selisihTahunTempo,
+            'is_terlambat'            => ($statusTempoKategori === 'terlambat'),
+            'status_pajak'            => $isLebih90Hari ? 'aktif' : ($tglNotice && $tglNotice < $today ? 'menunggak' : 'jatuh_tempo'),
+            'pesan_aktif'             => $isLebih90Hari ? 'Pajak Kendaraan Masih Aktif' : '',
 
             'njkb'            => round($njkb),
             'bobot'           => $bobot,

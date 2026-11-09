@@ -13,7 +13,7 @@ import {
   IconClock,
   IconShieldCheck
 } from '@tabler/icons-react';
-import { formatRupiah, formatDate } from '../utils/formatters';
+import { formatRupiah, formatDate, getKeteranganJatuhTempo } from '../utils/formatters';
 import { TaxCheckSkeleton } from '../components/SkeletonLoader';
 import { getApiBase, getAuthToken } from '../utils/config';
 
@@ -29,6 +29,8 @@ export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, on
   const [error, setError] = useState(null);
   const [taxData, setTaxData] = useState(null);
   const [copied, setCopied] = useState(false);
+
+  const statusTempo = taxData ? getKeteranganJatuhTempo(taxData.sd_notice, taxData) : null;
 
   const box1Ref = useRef(null);
   const box2Ref = useRef(null);
@@ -199,7 +201,7 @@ Nama Pemilik : ${d.pemilik || '-'}
 Unit : ${d.unit || `${d.merk} ${d.tipe}`}
 Penggunaan : ${d.penggunaan || '-'}${d.is_umum_non_badan ? ' (Tarif Pribadi 1,2% - Non Badan Usaha/PT)' : ''}
 Tahun Pembuatan : ${d.tahun || '-'}
-Masa Pajak : ${formatDate(d.sd_notice)}
+Masa Pajak : ${formatDate(d.sd_notice)}${!d.is_pajak_aktif && statusTempo?.teks ? ` (${statusTempo.teks})` : ''}
 Masa STNK : ${formatDate(d.sd_stnk)}
 `;
 
@@ -327,9 +329,9 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
     ctx.fillText(`Nama Pemilik : ${d.pemilik || '-'}`, 40, 225);
     ctx.fillText(`Unit : ${d.unit || `${d.merk} ${d.tipe}`}`, 40, 252);
     ctx.fillText(`Tahun Pembuatan : ${d.tahun || '-'}`, 40, 279);
-    ctx.fillStyle = '#047857';
+    ctx.fillStyle = statusTempo?.isTerlambat ? '#b91c1c' : '#047857';
     ctx.font = 'bold 15px sans-serif';
-    ctx.fillText(`Masa Pajak : ${formatDate(d.sd_notice)}`, 40, 306);
+    ctx.fillText(`Masa Pajak : ${formatDate(d.sd_notice)}${!d.is_pajak_aktif && statusTempo?.teks ? ` (${statusTempo.teks})` : ''}`, 40, 306);
     ctx.fillStyle = '#1e293b';
     ctx.font = '15px sans-serif';
     ctx.fillText(`Masa STNK : ${formatDate(d.sd_stnk)}`, 40, 333);
@@ -623,12 +625,27 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                       </span>
                     </div>
                     {taxData.is_pajak_aktif ? (
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
                         <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
                         Pajak Aktif
                       </span>
+                    ) : statusTempo?.isTerlambat ? (
+                      <span className="bg-rose-100 text-rose-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+                        {statusTempo.teks}
+                      </span>
+                    ) : statusTempo?.kategori === 'lebih_awal' ? (
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                        {statusTempo.teks}
+                      </span>
+                    ) : statusTempo?.kategori === 'hari_h' ? (
+                      <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                        Jatuh Tempo Hari Ini
+                      </span>
                     ) : taxData.tunggakan_ada ? (
-                      <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+                      <span className="bg-rose-100 text-rose-800 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
                         {taxData.tahun_tunggakan} Thn Tunggakan
                       </span>
                     ) : (
@@ -686,9 +703,14 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                           <span className="text-slate-400 text-[10px] font-semibold block uppercase tracking-wider">
                             Masa Pajak :
                           </span>
-                          <span className="font-bold text-emerald-700 text-sm">
+                          <span className={`font-bold text-sm ${statusTempo?.isTerlambat ? 'text-rose-700' : 'text-emerald-700'}`}>
                             {formatDate(taxData.sd_notice)}
                           </span>
+                          {!taxData.is_pajak_aktif && statusTempo?.teks && (
+                            <span className={`block text-[11px] font-bold mt-0.5 ${statusTempo.isTerlambat ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {statusTempo.teks}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400 text-[10px] font-semibold block uppercase tracking-wider">
