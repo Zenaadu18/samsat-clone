@@ -11,13 +11,14 @@ import {
   IconChevronUp,
   IconInfoCircle,
   IconClock,
-  IconShieldCheck
+  IconShieldCheck,
+  IconBuildingBank
 } from '@tabler/icons-react';
 import { formatRupiah, formatDate, getKeteranganJatuhTempo } from '../utils/formatters';
 import { TaxCheckSkeleton } from '../components/SkeletonLoader';
 import { getApiBase, getAuthToken } from '../utils/config';
 
-export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, onSwitchToSimulation }) {
+export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, onSwitchToSimulation, onSwitchToProNtt, showProNttInfo = true }) {
   // 3 Smart Plate Boxes states
   const [nopolPrefix, setNopolPrefix] = useState('');
   const [nopolNumber, setNopolNumber] = useState('');
@@ -195,7 +196,7 @@ export default function CheckTaxTab({ initialNopol = '', onClearInitialNopol, on
     if (!taxData) return;
     const d = taxData;
 
-    let text = `PAJAK.IN - DATA KENDARAAN NTT
+    let text = `DATA KENDARAAN :
 Nomor Polisi : ${d.nopol}
 Nama Pemilik : ${d.pemilik || '-'}
 Unit : ${d.unit || `${d.merk} ${d.tipe}`}
@@ -231,7 +232,6 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
       }
     }
 
-    text += `\nDihitung via Aplikasi Pajak.In • © ${new Date().getFullYear()} @sena`;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
@@ -566,7 +566,7 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
           <div ref={resultRef} className="space-y-4 bg-slate-100/70 p-2 sm:p-3 rounded-2xl">
             {/* Banner Pajak Masih Aktif (> 90 Hari) */}
             {taxData.is_pajak_aktif && (
-              <div 
+              <div
                 className="border-2 border-emerald-500 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-sm"
                 style={{
                   backgroundColor: '#ecfdf5',
@@ -1008,7 +1008,7 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
 
                       {/* Potongan Keringanan Jika Aktif */}
                       {taxData.amnesti_total_potongan > 0 && (
-                        <div 
+                        <div
                           className="flex justify-between items-center border border-emerald-300 p-2.5 rounded-xl text-xs text-emerald-800 font-bold"
                           style={{
                             backgroundColor: '#ecfdf5',
@@ -1038,8 +1038,8 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
                   </span>
                 </div>
 
-                {/* Info kecil pembayaran PRO NTT (Hanya jika masa STNK masih aktif) */}
-                {!taxData.is_pajak_aktif && !taxData.stnk_wajib && (taxData.biaya_stnk_total || 0) === 0 && taxData.total_setelah_diskon > 0 && taxData.total_setelah_diskon < taxData.total_pajak && (
+                {/* Info kecil pembayaran PRO NTT (Hanya jika menu PRO NTT & masa STNK masih aktif) */}
+                {showProNttInfo && !taxData.is_pajak_aktif && !taxData.stnk_wajib && (taxData.biaya_stnk_total || 0) === 0 && taxData.total_setelah_diskon > 0 && taxData.total_setelah_diskon < taxData.total_pajak && (
                   <div className="mt-1.5 flex justify-end">
                     <span className="text-[11px] text-slate-500 font-medium">
                       Bayar lewat PRO NTT <span className="font-mono-num font-bold text-emerald-700">{formatRupiah(taxData.total_setelah_diskon)}</span>
@@ -1051,6 +1051,20 @@ TOTAL ESTIMASI BAYAR: ${formatRupiah(d.total_pajak || d.total_bayar)}\n`;
           </div>
 
           {/* Action Buttons */}
+          {!taxData.is_pajak_aktif && !taxData.stnk_wajib && (taxData.biaya_stnk_total || 0) === 0 && onSwitchToProNtt && (
+            <button
+              type="button"
+              onClick={() => onSwitchToProNtt(taxData.nopol, taxData)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 active:scale-98 transition-all cursor-pointer"
+            >
+              <IconBuildingBank size={18} stroke={2.2} className="shrink-0" />
+              <span>
+                Bayar lewat PRO NTT
+                {taxData.total_setelah_diskon > 0 ? ` (${formatRupiah(taxData.total_setelah_diskon)})` : ''}
+              </span>
+            </button>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3 pt-1">
             <button
               onClick={handleCopyText}

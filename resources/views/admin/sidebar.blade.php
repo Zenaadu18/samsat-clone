@@ -67,6 +67,15 @@
                     </div>
                     <span class="sidebar-badge text-[10px] px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold font-mono">{{ $stats['total_activities'] ?? 0 }}</span>
                 </button>
+
+                <button type="button" onclick="switchSidebarMenu('menus')" id="menu-btn-menus" title="Kontrol Menu User ({{ $activeMenusCount ?? 6 }}/8 Aktif)"
+                        class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-50 cursor-pointer">
+                    <div class="nav-item-content flex items-center gap-2.5 truncate">
+                        <svg class="w-4 h-4 text-violet-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                        <span class="sidebar-text truncate">Kontrol Menu User</span>
+                    </div>
+                    <span class="sidebar-badge text-[10px] px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-700 font-bold font-mono">{{ $activeMenusCount ?? 6 }}/8</span>
+                </button>
             </div>
         </div>
 

@@ -33,6 +33,9 @@ Route::prefix('pwa')->middleware('throttle:60,1')->group(function () {
     Route::get('/njkb/nopol', [PwaApiController::class, 'checkNjkbByNopol'])->name('pwa.njkb.nopol');
     Route::get('/njkb', [PwaApiController::class, 'searchNjkb'])->name('pwa.njkb');
     Route::get('/config', [PwaApiController::class, 'config'])->name('pwa.config');
+    Route::post('/pro-ntt/bayar', [PwaApiController::class, 'proNttBayar'])->name('pwa.pro_ntt.bayar');
+    Route::post('/pro-ntt/status', [PwaApiController::class, 'proNttStatus'])->name('pwa.pro_ntt.status');
+    Route::get('/pro-ntt/history', [PwaApiController::class, 'proNttHistory'])->name('pwa.pro_ntt.history');
 });
 
 // -------------------------------------------------------------------------

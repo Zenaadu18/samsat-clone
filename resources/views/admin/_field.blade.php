@@ -1,7 +1,7 @@
 @php
     $kunci     = $row['kunci'];
     $nilai     = $row['nilai'];
-    $isBoolean = str_contains($kunci, 'aktif') || str_contains($kunci, 'bebas');
+    $isBoolean = str_contains($kunci, 'aktif') || str_contains($kunci, 'bebas') || str_starts_with($kunci, 'menu_') || str_starts_with($kunci, 'fitur_');
     $isDate    = str_contains($kunci, 'tanggal') || str_contains($kunci, 'mulai')
               || str_contains($kunci, 'selesai') || str_contains($kunci, 'berlaku');
     $isNumber  = str_contains($kunci, 'rasio') || str_contains($kunci, 'persen') || str_contains($kunci, 'diskon') || str_contains($kunci, 'maks') || str_contains($kunci, 'bobot');

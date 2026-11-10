@@ -29,6 +29,14 @@ if (!function_exists('reload_samsat_config')) {
             'jam_operasional_nopol_mulai'   => '00:01',
             'jam_operasional_nopol_selesai' => '21:00',
             'pembatasan_jam_nopol_aktif'    => '1',
+            'menu_cek'                      => '1',
+            'menu_prontt'                   => '1',
+            'fitur_tombol_bayar_prontt'     => '1',
+            'menu_bbn2'                     => '1',
+            'menu_simulasi'                 => '0',
+            'menu_njkb'                     => '0',
+            'menu_riwayat'                  => '1',
+            'menu_info'                     => '1',
         ];
 
         $dbTarifPkb = [

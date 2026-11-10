@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\TaxCalculationService;
 use App\Services\SimulationService;
+use App\Services\ProNttPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,11 +16,16 @@ class PwaApiController extends Controller
 {
     protected TaxCalculationService $taxService;
     protected SimulationService $simulationService;
+    protected ProNttPaymentService $proNttService;
 
-    public function __construct(TaxCalculationService $taxService, SimulationService $simulationService)
-    {
+    public function __construct(
+        TaxCalculationService $taxService,
+        SimulationService $simulationService,
+        ProNttPaymentService $proNttService
+    ) {
         $this->taxService = $taxService;
         $this->simulationService = $simulationService;
+        $this->proNttService = $proNttService;
     }
 
     /**
@@ -28,6 +34,10 @@ class PwaApiController extends Controller
      */
     public function check(Request $request): JsonResponse
     {
+        if ($blocked = $this->guardMenuAccess($request, 'cek', 'Cek Pajak')) {
+            return $blocked;
+        }
+
         $request->validate([
             'nopol'     => 'required|string|min:4|max:15|regex:/^[a-zA-Z0-9\s]+$/',
             'is_mutasi' => 'sometimes|boolean',
@@ -68,6 +78,10 @@ class PwaApiController extends Controller
      */
     public function simulate(Request $request): JsonResponse
     {
+        if ($blocked = $this->guardMenuAccess($request, 'simulasi', 'Simulasi Pajak')) {
+            return $blocked;
+        }
+
         $mode = $request->input('mode', 'nopol');
 
         if ($mode === 'manual') {
@@ -163,15 +177,11 @@ class PwaApiController extends Controller
             $nama        = trim((string)($apiData['NamaPemilik'] ?? '-'));
             $alamat      = trim((string)($apiData['Alamat'] ?? '-'));
             $uptAsal     = trim((string)($apiData['UPT_ASAL'] ?? ''));
-            $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
-            $noRangka    = trim((string)($apiData['NoRangka'] ?? $apiData['no_rangka'] ?? $apiData['rangka'] ?? ''));
-
-            $njkbInfo = $this->taxService->findNjkb($merk, $tipe, $tahun, $nopolInput, $noRangka, $jenisKend, $kJr, $isiCylinder);
-            $njkb = $njkbInfo['njkb'];
-            $bobot = $njkbInfo['bobot'];
-
-            $njub = $this->taxService->findNjub($rubahBentuk, $jenisKend, $tahun);
-            $dpPkb = ($njkb + $njub) * $bobot;
+            $valuation   = $this->resolveVehicleValuation($apiData, $nopolInput);
+            $njkb        = $valuation['njkb'];
+            $bobot       = $valuation['bobot'];
+            $njub        = $valuation['njub'];
+            $dpPkb       = $valuation['dp_pkb'];
 
             $params = [
                 'njkb'             => $njkb,
@@ -238,6 +248,10 @@ class PwaApiController extends Controller
      */
     public function checkNjkbByNopol(Request $request): JsonResponse
     {
+        if ($blocked = $this->guardMenuAccess($request, 'njkb', 'Katalog NJKB')) {
+            return $blocked;
+        }
+
         $request->validate([
             'nopol' => 'required|string|min:4|max:15|regex:/^[a-zA-Z0-9\s]+$/',
         ]);
@@ -257,15 +271,13 @@ class PwaApiController extends Controller
             $warnaTnkb   = trim((string)($apiData['WarnaTNKB'] ?? $apiData['WARNA_TNKB'] ?? 'HITAM'));
             $sdNotice    = trim((string)($apiData['SD_NOTICE'] ?? ''));
             $sdStnk      = trim((string)($apiData['SD_STNK'] ?? ''));
-            $noRangka    = trim((string)($apiData['NoRangka'] ?? ''));
 
-            $njkbInfo = $this->taxService->findNjkb($merk, $tipe, $tahun, $nopolClean, $noRangka);
-            $njkb = (float)$njkbInfo['njkb'];
-            $bobot = (float)($njkbInfo['bobot'] > 0 ? $njkbInfo['bobot'] : 1.0);
-            $sumber = $njkbInfo['sumber'] ?? '';
-
-            $njub = (float)$this->taxService->findNjub($rubahBentuk, $jenisKend, $tahun);
-            $dasarPkb = round(($njkb + $njub) * $bobot);
+            $valuation = $this->resolveVehicleValuation($apiData, $nopolClean);
+            $njkb      = $valuation['njkb'];
+            $bobot     = $valuation['bobot'];
+            $sumber    = $valuation['sumber'];
+            $njub      = $valuation['njub'];
+            $dasarPkb  = round($valuation['dp_pkb']);
 
             $this->logActivityIfUser($request, 'Cek Nilai Jual', 'Cek NJKB Nopol ' . $nopolClean . ' (' . trim($merk . ' ' . $tipe) . ')', (float)$njkb);
 
@@ -311,6 +323,10 @@ class PwaApiController extends Controller
      */
     public function searchNjkb(Request $request): JsonResponse
     {
+        if ($blocked = $this->guardMenuAccess($request, 'njkb', 'Katalog NJKB')) {
+            return $blocked;
+        }
+
         $rawQ = trim((string)$request->input('q', ''));
         $q = substr(preg_replace('/[^a-zA-Z0-9\s\-\/\.]/', '', $rawQ), 0, 40);
 
@@ -360,12 +376,25 @@ class PwaApiController extends Controller
     public function config(): JsonResponse
     {
         $config = $this->taxService->getConfig();
+        $menus  = $this->taxService->getMenuVisibility();
+
         return response()->json([
             'status' => 'success',
             'data'   => [
                 'amnesti_aktif'   => (bool)($config['konfigurasi']['amnesti_aktif'] ?? true),
                 'amnesti_mulai'   => $config['konfigurasi']['amnesti_mulai'] ?? '2026-09-01',
                 'amnesti_selesai' => $config['konfigurasi']['amnesti_selesai'] ?? '2026-12-31',
+                'menus'           => [
+                    'home'                => true,
+                    'cek'                 => (bool)($menus['cek'] ?? true),
+                    'prontt'              => (bool)($menus['prontt'] ?? true),
+                    'tombol_bayar_prontt' => (bool)($menus['tombol_bayar_prontt'] ?? true),
+                    'bbn2'                => (bool)($menus['bbn2'] ?? true),
+                    'simulasi'            => (bool)($menus['simulasi'] ?? false),
+                    'njkb'                => (bool)($menus['njkb'] ?? false),
+                    'riwayat'             => (bool)($menus['riwayat'] ?? true),
+                    'info'                => (bool)($menus['info'] ?? true),
+                ],
                 'app_name'        => 'Pajak.In',
                 'version'         => '2.0.0',
             ],
@@ -378,6 +407,10 @@ class PwaApiController extends Controller
      */
     public function simulateBbn2(Request $request): JsonResponse
     {
+        if ($blocked = $this->guardMenuAccess($request, 'bbn2', 'Balik Nama (BBN 2)')) {
+            return $blocked;
+        }
+
         $mode = $request->input('mode', 'nopol');
         $includeTembak = filter_var($request->input('include_tembak', $request->input('use_tembak', false)), FILTER_VALIDATE_BOOLEAN);
         $statusPajak = $request->input('status_pajak', $request->input('pajak_status', 'otomatis')); // 'otomatis' | 'lunas' | 'belum_bayar'
@@ -534,9 +567,158 @@ class PwaApiController extends Controller
     }
 
     /**
-     * Helper mencatat riwayat aktivitas user
+     * POST /api/pwa/pro-ntt/bayar
+     * Terbitkan kode billing pembayaran pajak tahunan via PRO NTT (khusus kendaraan yang STNK belum jatuh tempo)
      */
-    protected function logActivityIfUser(Request $request, string $activity, string $detail, ?float $totalBiaya = null): void
+    public function proNttBayar(Request $request): JsonResponse
+    {
+        $user = $this->resolveAuthUser($request);
+        if (!$user || !empty($user->is_blocked)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => !$user ? 'Sesi login diperlukan. Silakan login kembali.' : 'Akun Anda sedang diblokir.',
+            ], !$user ? 401 : 403);
+        }
+        if ($blocked = $this->guardMenuAccess($request, 'prontt', 'Pembayaran PRO NTT', $user)) {
+            return $blocked;
+        }
+
+        $request->validate([
+            'nopol'        => 'required|string|min:4|max:15|regex:/^[a-zA-Z0-9\s]+$/',
+            'nomor_rangka' => 'nullable|string|min:5|max:30|regex:/^[a-zA-Z0-9]+$/',
+        ]);
+
+        $nopol  = (string)$request->input('nopol');
+        $rangka = $request->input('nomor_rangka');
+
+        try {
+            $result = $this->proNttService->createBilling($nopol, $rangka ? (string)$rangka : null, $user);
+            $payment = $result['payment'];
+
+            $this->logActivityIfUser(
+                $request,
+                'Bayar PRO NTT',
+                'Kode Bayar ' . ($payment['kode_bayar'] ?? '-') . ' untuk ' . ($payment['nopol'] ?? $nopol),
+                (float)($payment['total_bayar'] ?? 0)
+            );
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Kode bayar Bank NTT berhasil dibuat.',
+                'data'    => $payment,
+            ]);
+        } catch (Exception $e) {
+            $code = in_array($e->getCode(), [400, 404, 422, 502, 503]) ? $e->getCode() : 500;
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], $code);
+        } catch (\Throwable $e) {
+            Log::error('PWA PRO NTT Bayar Exception: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal memproses pembuatan kode bayar PRO NTT.',
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /api/pwa/pro-ntt/status
+     * Refresh / cek status pembayaran terbaru per nopol dari PRO NTT
+     */
+    public function proNttStatus(Request $request): JsonResponse
+    {
+        $user = $this->resolveAuthUser($request);
+        if (!$user || !empty($user->is_blocked)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => !$user ? 'Sesi login diperlukan. Silakan login kembali.' : 'Akun Anda sedang diblokir.',
+            ], !$user ? 401 : 403);
+        }
+        if ($blocked = $this->guardMenuAccess($request, 'prontt', 'Pembayaran PRO NTT', $user)) {
+            return $blocked;
+        }
+
+        $request->validate([
+            'nopol'      => 'required|string|min:4|max:15|regex:/^[a-zA-Z0-9\s]+$/',
+            'payment_id' => 'nullable|integer|min:1',
+        ]);
+
+        $nopol = (string)$request->input('nopol');
+        $paymentId = $request->input('payment_id') ? (int)$request->input('payment_id') : null;
+
+        try {
+            $res = $this->proNttService->checkStatus($nopol, $paymentId, $user);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => $res['message'] ?? 'Status pembayaran berhasil diperbarui.',
+                'data'    => [
+                    'found_on_upstream' => (bool)$res['found_on_upstream'],
+                    'checked_at'        => $res['checked_at'] ?? null,
+                    'payment'           => $res['payment'],
+                ],
+            ]);
+        } catch (Exception $e) {
+            $code = in_array($e->getCode(), [400, 404, 422, 502, 503]) ? $e->getCode() : 500;
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], $code);
+        } catch (\Throwable $e) {
+            Log::error('PWA PRO NTT Status Exception: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal memeriksa status pembayaran PRO NTT.',
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/pwa/pro-ntt/history
+     * Ambil riwayat kode bayar PRO NTT milik user
+     */
+    public function proNttHistory(Request $request): JsonResponse
+    {
+        $user = $this->resolveAuthUser($request);
+        if (!$user || !empty($user->is_blocked)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => !$user ? 'Sesi login diperlukan. Silakan login kembali.' : 'Akun Anda sedang diblokir.',
+            ], !$user ? 401 : 403);
+        }
+        if ($blocked = $this->guardMenuAccess($request, 'prontt', 'Pembayaran PRO NTT', $user)) {
+            return $blocked;
+        }
+
+        $isAll = $request->query('all') === '1' || $request->query('all') === 'true';
+        $data = $this->proNttService->getHistory($user, $isAll);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $data,
+        ]);
+    }
+
+    /**
+     * Cegah akses endpoint jika menu dinonaktifkan admin (kecuali user role admin).
+     */
+    protected function guardMenuAccess(Request $request, string $menuKey, string $label, ?object $resolvedUser = null): ?JsonResponse
+    {
+        $user = $resolvedUser ?? $this->resolveAuthUser($request);
+        if (!$this->taxService->isMenuEnabledForUser($menuKey, $user)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Menu {$label} sedang dinonaktifkan oleh administrator.",
+            ], 403);
+        }
+        return null;
+    }
+
+    /**
+     * Ambil user login dari token request.
+     */
+    protected function resolveAuthUser(Request $request): ?object
     {
         try {
             $token = null;
@@ -549,23 +731,80 @@ class PwaApiController extends Controller
                     ?: $request->input('api_token');
             }
 
-            if ($token) {
-                $user = \Illuminate\Support\Facades\DB::table('users')->where('api_token', $token)->first();
-                if ($user) {
-                    \Illuminate\Support\Facades\DB::table('activity_logs')->insert([
-                        'user_id'     => $user->id,
-                        'username'    => $user->username,
-                        'user_name'   => $user->name,
-                        'activity'    => $activity,
-                        'detail'      => $detail,
-                        'total_biaya' => $totalBiaya !== null && $totalBiaya > 0 ? $totalBiaya : null,
-                        'ip_address'  => $request->ip(),
-                        'user_agent'  => substr((string)$request->userAgent(), 0, 250),
-                        'created_at'  => now(),
-                    ]);
-                }
+            if (!$token) {
+                return null;
+            }
+
+            return DB::table('users')->where('api_token', $token)->first();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Helper mencatat riwayat aktivitas user
+     */
+    protected function logActivityIfUser(Request $request, string $activity, string $detail, ?float $totalBiaya = null): void
+    {
+        try {
+            $user = $this->resolveAuthUser($request);
+            if ($user) {
+                DB::table('activity_logs')->insert([
+                    'user_id'     => $user->id,
+                    'username'    => $user->username,
+                    'user_name'   => $user->name,
+                    'activity'    => $activity,
+                    'detail'      => $detail,
+                    'total_biaya' => $totalBiaya !== null && $totalBiaya > 0 ? $totalBiaya : null,
+                    'ip_address'  => $request->ip(),
+                    'user_agent'  => substr((string)$request->userAgent(), 0, 250),
+                    'created_at'  => now(),
+                ]);
             }
         } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Resolve NJKB, bobot, dan NJUB (hanya ditambah bila NJKB berasal dari database lokal).
+     */
+    protected function resolveVehicleValuation(array $apiData, string $nopolClean): array
+    {
+        $merk        = trim((string)($apiData['Merk'] ?? ''));
+        $tipe        = trim((string)($apiData['Type'] ?? ''));
+        $tahun       = (int)($apiData['TahunPembuatan'] ?? 0);
+        $kJr         = trim((string)($apiData['K_JR'] ?? ''));
+        $jenisKend   = strtoupper(trim((string)($apiData['JenisKendaraan'] ?? '')));
+        $isiCylinder = function_exists('normalisasiCc') ? normalisasiCc($apiData['IsiCylinder'] ?? 0) : (int)($apiData['IsiCylinder'] ?? 0);
+        $rubahBentuk = strtoupper(trim((string)($apiData['RubahBentuk'] ?? '')));
+        $noRangka    = trim((string)($apiData['NoRangka'] ?? $apiData['no_rangka'] ?? $apiData['rangka'] ?? ''));
+        $presetNjkb  = !empty($apiData['njkb_api']) ? (float)$apiData['njkb_api'] : null;
+        $presetBobot = !empty($apiData['bobot_api']) ? (float)$apiData['bobot_api'] : null;
+
+        $njkbInfo = $this->taxService->findNjkb(
+            $merk,
+            $tipe,
+            $tahun,
+            $nopolClean,
+            $noRangka,
+            $jenisKend,
+            $kJr,
+            $isiCylinder,
+            $presetNjkb,
+            $presetBobot
+        );
+
+        $njkb   = (float)$njkbInfo['njkb'];
+        $bobot  = (float)($njkbInfo['bobot'] > 0 ? $njkbInfo['bobot'] : 1.0);
+        $sumber = (string)($njkbInfo['sumber'] ?? '');
+        $njub   = $this->taxService->resolveNjubForSource($sumber, $rubahBentuk, $jenisKend, $tahun);
+
+        return [
+            'njkb'   => $njkb,
+            'bobot'  => $bobot,
+            'njub'   => $njub,
+            'dp_pkb' => ($njkb + $njub) * $bobot,
+            'sumber' => $sumber,
+        ];
     }
 }
 

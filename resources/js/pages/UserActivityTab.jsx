@@ -62,6 +62,8 @@ export default function UserActivityTab({ onRepeatSearch }) {
         return { backgroundColor: '#f0fdfa', color: '#0f766e', borderColor: '#99f6e4' };
       case 'Cek Nilai Jual':
         return { backgroundColor: '#faf5ff', color: '#7e22ce', borderColor: '#e9d5ff' };
+      case 'Bayar PRO NTT':
+        return { backgroundColor: '#dcfce7', color: '#15803d', borderColor: '#86efac' };
       default:
         return { backgroundColor: '#f8fafc', color: '#334155', borderColor: '#e2e8f0' };
     }

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'senacode' => [
+        'base_url' => env('SENACODE_API_BASE_URL', 'https://api.senacode.my.id'),
+        'api_key'  => env('SENACODE_API_KEY', 'senacode-samsat-key-2026'),
+    ],
+
 ];

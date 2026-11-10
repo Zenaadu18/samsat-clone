@@ -10,11 +10,18 @@ import {
   IconBook,
   IconRefresh,
   IconCalculator,
-  IconDatabase
+  IconDatabase,
+  IconBuildingBank
 } from '@tabler/icons-react';
 
-export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
+export default function HomeTab({ setActiveTab, onQuickSearch, currentUser, canAccessMenu, menuConfig = {} }) {
   const isAdmin = currentUser?.role === 'admin';
+  const can = (tabId) => {
+    if (canAccessMenu) return canAccessMenu(tabId);
+    if (tabId === 'simulasi' || tabId === 'njkb') return isAdmin;
+    return true;
+  };
+  const visibleMenuCount = ['bbn2', 'cek', 'prontt', 'simulasi', 'njkb', 'riwayat', 'info'].filter(can).length;
 
   // 3 Smart Plate Boxes states
   const [nopolPrefix, setNopolPrefix] = useState('');
@@ -110,7 +117,7 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
   return (
     <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
       {/* Top Section: Hero Card + Quick Search Grid on Tablet/PC */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+      <div className={`grid gap-4 sm:gap-5 items-stretch ${can('cek') ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
         {/* Hero Card */}
         <div
           className="relative overflow-hidden rounded-2xl card-gradient-emerald-hero text-white p-5 sm:p-6 shadow-lg shadow-emerald-950/20 flex flex-col justify-between border border-emerald-600/30"
@@ -122,32 +129,36 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
           <div className="relative z-10 space-y-3">
             <div>
               <h2 className="text-xl sm:text-2xl font-extrabold leading-tight tracking-tight">
-                Simulasi Balik Nama (BBN 2)
+                {can('bbn2') ? 'Simulasi Balik Nama (BBN 2)' : 'Portal Informasi Pajak Daerah NTT'}
               </h2>
               <p className="text-emerald-100/90 text-xs sm:text-sm mt-1.5 leading-relaxed">
-                Kalkulasi estimasi biaya balik nama kendaraan bermotor, mutasi masuk, STNK &amp; Plat baru.
+                {can('bbn2')
+                  ? 'Kalkulasi estimasi biaya balik nama kendaraan bermotor, mutasi masuk, STNK & Plat baru.'
+                  : 'Akses layanan pengecekan dan administrasi pajak kendaraan bermotor Provinsi Nusa Tenggara Timur.'}
               </p>
             </div>
           </div>
 
           <div className="relative z-10 pt-4 flex flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={() => setActiveTab('bbn2')}
-              className="inline-flex items-center gap-2 bg-white text-emerald-900 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer"
-            >
-              <span>Bea Balik Nama ke-2</span>
-              <IconArrowRight size={16} stroke={2.2} className="shrink-0" />
-            </button>
+            {can('bbn2') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('bbn2')}
+                className="inline-flex items-center gap-2 bg-white text-emerald-900 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer"
+              >
+                <span>Bea Balik Nama ke-2</span>
+                <IconArrowRight size={16} stroke={2.2} className="shrink-0" />
+              </button>
+            )}
 
-            {isAdmin && (
+            {can('simulasi') && (
               <button
                 type="button"
                 onClick={() => setActiveTab('simulasi')}
                 className="inline-flex items-center gap-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white border border-emerald-400/40 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow active:scale-95 transition-all cursor-pointer"
               >
                 <IconCalculator size={16} stroke={2.2} className="shrink-0 text-amber-300" />
-                <span>Simulasi Pajak (Admin)</span>
+                <span>Simulasi Pajak {isAdmin && menuConfig.simulasi === false ? '(Admin)' : ''}</span>
               </button>
             )}
           </div>
@@ -156,7 +167,8 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
           <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
         </div>
 
-        {/* Quick Search Form */}
+        {/* Quick Search Form — hanya tampil bila menu Cek Pajak aktif */}
+        {can('cek') && (
         <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-800 text-sm sm:text-base mb-1">
@@ -237,15 +249,22 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
             </button>
           </form>
         </div>
+        )}
       </div>
 
-      {/* Quick Menu Grid — Terbuka sesuai Hak Akses Role User / Admin */}
+      {/* Quick Menu Grid — Terbuka sesuai Konfigurasi Admin & Hak Akses Role */}
       <div>
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">
           Layanan Utama {isAdmin && <span className="text-emerald-700 lowercase font-mono font-bold text-[11px]">(mode admin aktif)</span>}
         </h4>
+        {visibleMenuCount === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs sm:text-sm text-slate-500">
+            Seluruh menu layanan saat ini sedang dinonaktifkan sementara oleh administrator.
+          </div>
+        ) : (
         <div className={`grid gap-3 ${isAdmin ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
           {/* Card 1: Balik Nama (BBN 2) */}
+          {can('bbn2') && (
           <button
             type="button"
             onClick={() => setActiveTab('bbn2')}
@@ -264,8 +283,10 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               BPKB, STNK &amp; Plat Baru
             </div>
           </button>
+          )}
 
           {/* Card 2: Cek Pajak Nopol */}
+          {can('cek') && (
           <button
             type="button"
             onClick={() => setActiveTab('cek')}
@@ -284,9 +305,32 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               Tagihan PKB &amp; SWDKLLJ
             </div>
           </button>
+          )}
 
-          {/* Admin Only Card A: Simulasi Pajak & Amnesti */}
-          {isAdmin && (
+          {/* Card 2b: Pembayaran Online PRO NTT */}
+          {can('prontt') && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('prontt')}
+            className="w-full bg-white p-4 rounded-2xl border border-blue-200/90 shadow-xs text-left hover:border-blue-400 hover:shadow-md transition-all active:scale-95 group cursor-pointer"
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold mb-3 group-hover:scale-110 transition-transform shrink-0"
+              style={{ backgroundColor: '#dbeafe', color: '#1d4ed8' }}
+            >
+              <IconBuildingBank size={22} stroke={2} className="shrink-0" />
+            </div>
+            <div className="font-bold text-slate-800 text-xs sm:text-sm leading-snug">
+              Bayar (PRO NTT)
+            </div>
+            <div className="text-[11px] sm:text-xs text-slate-500 mt-1">
+              Kode Bayar Bank NTT
+            </div>
+          </button>
+          )}
+
+          {/* Simulasi Pajak & Amnesti */}
+          {can('simulasi') && (
             <button
               type="button"
               onClick={() => setActiveTab('simulasi')}
@@ -300,7 +344,9 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               </div>
               <div className="font-bold text-slate-800 text-xs sm:text-sm leading-snug flex items-center gap-1.5">
                 <span>Simulasi Pajak</span>
-                <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-mono font-bold">ADMIN</span>
+                {isAdmin && menuConfig.simulasi === false && (
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-mono font-bold">ADMIN</span>
+                )}
               </div>
               <div className="text-[11px] sm:text-xs text-slate-500 mt-1">
                 Komparasi Pergub 64 vs Normal
@@ -308,8 +354,8 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
             </button>
           )}
 
-          {/* Admin Only Card B: Katalog NJKB */}
-          {isAdmin && (
+          {/* Katalog NJKB */}
+          {can('njkb') && (
             <button
               type="button"
               onClick={() => setActiveTab('njkb')}
@@ -323,7 +369,9 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               </div>
               <div className="font-bold text-slate-800 text-xs sm:text-sm leading-snug flex items-center gap-1.5">
                 <span>Katalog NJKB</span>
-                <span className="text-[9px] bg-cyan-100 text-cyan-800 px-1.5 py-0.2 rounded font-mono font-bold">ADMIN</span>
+                {isAdmin && menuConfig.njkb === false && (
+                  <span className="text-[9px] bg-cyan-100 text-cyan-800 px-1.5 py-0.2 rounded font-mono font-bold">ADMIN</span>
+                )}
               </div>
               <div className="text-[11px] sm:text-xs text-slate-500 mt-1">
                 Basis Nilai Jual NTT
@@ -332,6 +380,7 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
           )}
 
           {/* Card 3: Riwayat Aktivitas */}
+          {can('riwayat') && (
           <button
             type="button"
             onClick={() => setActiveTab('riwayat')}
@@ -350,8 +399,10 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               Pencarian Terakhir Anda
             </div>
           </button>
+          )}
 
           {/* Card 4: Ketentuan Relaksasi */}
+          {can('info') && (
           <button
             type="button"
             onClick={() => setActiveTab('info')}
@@ -370,7 +421,9 @@ export default function HomeTab({ setActiveTab, onQuickSearch, currentUser }) {
               Pergub NTT No. 64/2026
             </div>
           </button>
+          )}
         </div>
+        )}
       </div>
     </div>
   );

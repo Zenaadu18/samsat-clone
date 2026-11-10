@@ -1204,6 +1204,88 @@
             </section>
 
             <!-- ===============================================================
+                 SECTION 10B: KONTROL MENU & FITUR USER (PWA)
+                 =============================================================== -->
+            <section id="section-menus" class="admin-section hidden space-y-4">
+                <form action="{{ route('admin.save_config') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="active_section" value="menus">
+                    <div class="bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-xs space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <span class="p-1.5 bg-violet-50 text-violet-600 rounded-lg">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                                    </span>
+                                    Kontrol Visibilitas Menu &amp; Tombol User
+                                </h2>
+                                <p class="text-xs text-slate-500 mt-1">Atur menu apa saja yang muncul untuk pengguna biasa (role <strong>user</strong>). Akun role <strong>admin</strong> di aplikasi tetap dapat melihat seluruh menu untuk pengujian.</p>
+                            </div>
+                            <button type="submit" class="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span>Simpan Menu User</span>
+                            </button>
+                        </div>
+
+                        <div class="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5 text-xs text-blue-800 flex items-start gap-2.5">
+                            <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <div>
+                                Pengaturan ini hanya mengontrol tampilan UI &amp; akses endpoint fitur untuk user non-admin. <strong>Perhitungan pajak, tarif, amnesti, dan SWDKLLJ tetap identik dan tidak terpengaruh.</strong> Tab <em>Beranda</em> selalu tampil sebagai halaman utama.
+                            </div>
+                        </div>
+
+                        @php
+                            $menuItems = [
+                                ['kunci' => 'menu_cek', 'judul' => 'Menu Cek Pajak Nopol', 'desk' => 'Menampilkan tab & card Cek Pajak, form cari cepat di Beranda, serta shortcut Cek Pajak di tab lain.', 'grup' => 'Menu Publik / User'],
+                                ['kunci' => 'menu_prontt', 'judul' => 'Menu Pembayaran PRO NTT', 'desk' => 'Menampilkan tab & card PRO NTT untuk pembuatan kode bayar dan refresh status pembayaran Bank NTT.', 'grup' => 'Menu Publik / User'],
+                                ['kunci' => 'fitur_tombol_bayar_prontt', 'judul' => 'Tombol "Bayar lewat PRO NTT" (di Cek Pajak)', 'desk' => 'Menampilkan tombol biru "Bayar lewat PRO NTT" di hasil Cek Pajak (otomatis ikut sembunyi bila Menu PRO NTT OFF).', 'grup' => 'Aksi Halaman Cek Pajak'],
+                                ['kunci' => 'menu_bbn2', 'judul' => 'Menu Balik Nama (BBN 2)', 'desk' => 'Menampilkan tab, tombol Hero Beranda & card simulasi Bea Balik Nama ke-2.', 'grup' => 'Menu Publik / User'],
+                                ['kunci' => 'menu_riwayat', 'judul' => 'Menu Riwayat Aktivitas', 'desk' => 'Menampilkan tab & card riwayat pencarian nopol pengguna.', 'grup' => 'Menu Publik / User'],
+                                ['kunci' => 'menu_info', 'judul' => 'Menu Ketentuan Relaksasi / Info', 'desk' => 'Menampilkan card informasi ketentuan Pergub & relaksasi pajak.', 'grup' => 'Menu Publik / User'],
+                                ['kunci' => 'menu_simulasi', 'judul' => 'Menu Simulasi Pajak (User Non-Admin)', 'desk' => 'Default NONAKTIF (khusus Admin PWA). Aktifkan jika ingin membuka menu Simulasi ke user biasa juga.', 'grup' => 'Fitur Lanjutan'],
+                                ['kunci' => 'menu_njkb', 'judul' => 'Menu Katalog NJKB (User Non-Admin)', 'desk' => 'Default NONAKTIF (khusus Admin PWA). Aktifkan jika ingin membuka Katalog NJKB ke user biasa juga.', 'grup' => 'Fitur Lanjutan'],
+                            ];
+                        @endphp
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @foreach($menuItems as $mItem)
+                                @php
+                                    $mKunci = $mItem['kunci'];
+                                    $mVal   = (string)($grupMenu[$mKunci] ?? '0');
+                                    $isOn   = in_array(strtolower(trim($mVal)), ['1', 'true', 'on', 'yes'], true);
+                                @endphp
+                                <div class="bg-slate-50/60 border border-slate-200/90 rounded-2xl p-4 flex items-start justify-between gap-4 hover:border-violet-300 transition-colors">
+                                    <div class="space-y-1 min-w-0">
+                                        <div class="flex flex-wrap items-center gap-1.5">
+                                            <span class="text-xs sm:text-sm font-bold text-slate-900">{{ $mItem['judul'] }}</span>
+                                            <span class="text-[10px] font-mono text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">{{ $mKunci }}</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 leading-relaxed">{{ $mItem['desk'] }}</p>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-1.5 shrink-0 pt-0.5">
+                                        <input type="hidden" name="config[{{ $mKunci }}]" value="0">
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox"
+                                                   id="{{ $mKunci }}"
+                                                   name="config[{{ $mKunci }}]"
+                                                   value="1"
+                                                   class="sr-only peer"
+                                                   {{ $isOn ? 'checked' : '' }}
+                                                   onchange="updateToggleLabel(this)">
+                                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                        </label>
+                                        <span class="text-[10px] font-bold font-mono transition-colors {{ $isOn ? 'text-emerald-600' : 'text-slate-400' }}" id="label-{{ $mKunci }}">
+                                            {{ $isOn ? 'AKTIF' : 'NONAKTIF' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- ===============================================================
                  SECTION 11: KEAMANAN & AKUN ADMIN
                  =============================================================== -->
             <section id="section-keamanan" class="admin-section hidden space-y-4">
@@ -2246,7 +2328,7 @@
         }
 
         // Set default active menu & inisialisasi tabel
-        switchSidebarMenu('users');
+        switchSidebarMenu(@json($activeSection ?? 'users'));
         renderLogsTable();
 
         // Toggle Switch Label Updater

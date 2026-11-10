@@ -58,6 +58,16 @@ class AdminController extends Controller
         $grupSistem     = [];
         $grupBobot      = [];
         $grupTarifDasar = [];
+        $grupMenu       = [
+            'menu_cek'                  => '1',
+            'menu_prontt'               => '1',
+            'fitur_tombol_bayar_prontt' => '1',
+            'menu_bbn2'                 => '1',
+            'menu_simulasi'             => '0',
+            'menu_njkb'                 => '0',
+            'menu_riwayat'              => '1',
+            'menu_info'                 => '1',
+        ];
 
         $konfigurasi = DB::select('SELECT kunci, nilai FROM konfigurasi ORDER BY kunci ASC');
         foreach ($konfigurasi as $row) {
@@ -66,12 +76,15 @@ class AdminController extends Controller
                 $grupAmnesti[] = ['kunci' => $k, 'nilai' => $row->nilai];
             } elseif (str_contains($k, 'bobot')) {
                 $grupBobot[] = ['kunci' => $k, 'nilai' => $row->nilai];
+            } elseif (str_starts_with($k, 'menu_') || str_starts_with($k, 'fitur_')) {
+                $grupMenu[$k] = (string)$row->nilai;
             } elseif (str_contains($k, 'api') || str_contains($k, 'jam') || str_contains($k, 'pembatasan')) {
                 $grupSistem[] = ['kunci' => $k, 'nilai' => $row->nilai];
             } else {
                 $grupTarifDasar[] = ['kunci' => $k, 'nilai' => $row->nilai];
             }
         }
+        $activeMenusCount = count(array_filter($grupMenu, fn($v) => in_array(strtolower(trim((string)$v)), ['1', 'true', 'on', 'yes'], true)));
 
         $dataPkb         = DB::select('SELECT k_guna, tarif_lama, tarif_baru, keterangan FROM tarif_pkb');
         $dataStnk        = DB::select('SELECT jenis, biaya_stnk, biaya_tnkb, keterangan FROM tarif_stnk_tnkb');
@@ -138,6 +151,9 @@ class AdminController extends Controller
             'grupSistem'         => $grupSistem,
             'grupBobot'          => $grupBobot,
             'grupTarifDasar'     => $grupTarifDasar,
+            'grupMenu'           => $grupMenu,
+            'activeMenusCount'   => $activeMenusCount,
+            'activeSection'      => session('activeSection', 'users'),
             'dataPkb'            => $dataPkb,
             'dataStnk'           => $dataStnk,
             'dataSwdkllj'        => $dataSwdkllj,
@@ -168,17 +184,26 @@ class AdminController extends Controller
 
             if ($request->has('config') && is_array($request->input('config'))) {
                 $stmt = DB::connection()->getPdo()->prepare(
-                    'UPDATE konfigurasi SET nilai = ? WHERE kunci = ?'
+                    'INSERT INTO konfigurasi (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = VALUES(nilai)'
                 );
                 foreach ($request->input('config') as $kunci => $nilai) {
-                    $stmt->execute([trim((string) $nilai), trim((string) $kunci)]);
+                    $stmt->execute([trim((string) $kunci), trim((string) $nilai)]);
                 }
             }
 
             DB::commit();
             $this->clearCacheInternal();
 
-            return redirect()->route('admin')->with('pesanStatus', 'Konfigurasi sistem & amnesti berhasil disimpan.');
+            $activeSection = trim((string) $request->input('active_section', ''));
+            $msg = $activeSection === 'menus'
+                ? 'Konfigurasi tampilan menu user berhasil disimpan.'
+                : 'Konfigurasi sistem & amnesti berhasil disimpan.';
+
+            $redirect = redirect()->route('admin')->with('pesanStatus', $msg);
+            if ($activeSection !== '') {
+                $redirect->with('activeSection', $activeSection);
+            }
+            return $redirect;
         } catch (\Throwable $e) {
             DB::rollBack();
             return redirect()->route('admin')->with('pesanError', 'Gagal menyimpan konfigurasi: ' . $e->getMessage());

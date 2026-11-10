@@ -285,6 +285,57 @@ function hitungBulanTerlambatDariTanggal2(DateTime $jatuhTempo, DateTime $hingga
  *   - rasio_opsen_pkb            (default 0.66)
  *   - persen_denda_pkb_per_bulan (default 0.01)
  */
+/**
+ * Membentuk daftar periode pajak tahunan (maksimal 5 periode terbaru).
+ *
+ * Untuk kendaraan terlambat/menunggak ($periodStart < $refDate), periode
+ * perpanjangan berikutnya dibuka hanya jika jatuh tempo berikutnya <= 90 hari
+ * dan masih dalam tahun kalender berjalan (selaras dengan penetapan Bank NTT).
+ */
+if (!function_exists('buatPeriodePajak')) {
+    function buatPeriodePajak(?DateTime $periodStart, DateTime $refDate): array {
+        $periods = [];
+        if (!$periodStart) {
+            $periodEnd = clone $refDate;
+            $periodEnd->modify('+1 year');
+            $periods[] = ['start' => clone $refDate, 'end' => $periodEnd];
+            return $periods;
+        }
+
+        $current = clone $periodStart;
+        $guard   = 0;
+        if ($periodStart >= $refDate) {
+            $periodEnd = clone $current;
+            $periodEnd->modify('+1 year');
+            $periods[] = ['start' => clone $current, 'end' => $periodEnd];
+        } else {
+            while ($current < $refDate && $guard < 25) {
+                $periodEnd = clone $current;
+                $periodEnd->modify('+1 year');
+                $periods[] = ['start' => clone $current, 'end' => $periodEnd];
+                $current = $periodEnd;
+                $guard++;
+            }
+            if ($current >= $refDate && $guard < 25) {
+                $daysToJt = (int)$refDate->diff($current)->days;
+                $sameOrPriorYear = ((int)$current->format('Y') <= (int)$refDate->format('Y'));
+                if ($daysToJt <= 90 && $sameOrPriorYear) {
+                    $periodEnd = clone $current;
+                    $periodEnd->modify('+1 year');
+                    $periods[] = ['start' => clone $current, 'end' => $periodEnd];
+                }
+            }
+        }
+
+        // Batasi maksimal 5 tahun (ambil 5 data terbaru dari belakang)
+        if (count($periods) > 5) {
+            $periods = array_slice($periods, -5);
+        }
+
+        return $periods;
+    }
+}
+
 function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $kendaraan = []): array {
     global $dbKonfigurasi;
 
@@ -307,44 +358,8 @@ function hitungPkbLengkap(float $dpPkb, string $kGuna, string $sdNotice, array $
 
     // 2. IDENTIFIKASI PERIODE TERLEBIH DAHULU (Menentukan ada tunggakan atau tidak)
     $periodStart = buatTanggal($sdNotice);
-    $periods = [];
-    $isValidDate = true;
-
-    if (!$periodStart) {
-        $isValidDate = false;
-        $periodEnd = clone $today;
-        $periodEnd->modify('+1 year');
-        $periods[] = ['start' => clone $today, 'end' => clone $periodEnd];
-    } else {
-        $current = clone $periodStart;
-        $guard   = 0;
-        if ($periodStart >= $today) {
-            $periodEnd = clone $current;
-            $periodEnd->modify('+1 year');
-            $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-        } else {
-            while ($current < $today && $guard < 25) {
-                $periodEnd = clone $current;
-                $periodEnd->modify('+1 year');
-                $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-                $current = $periodEnd;
-                $guard++;
-            }
-            if ($current >= $today && $guard < 25) {
-                $daysToJt = (int)$today->diff($current)->days;
-                if ($daysToJt <= 90) {
-                    $periodEnd = clone $current;
-                    $periodEnd->modify('+1 year');
-                    $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-                }
-            }
-        }
-    }
-
-    // Batasi maksimal 5 tahun (ambil 5 data terbaru dari belakang)
-    if (count($periods) > 5) {
-        $periods = array_slice($periods, -5);
-    }
+    $isValidDate = ($periodStart !== null);
+    $periods     = buatPeriodePajak($periodStart, $today);
 
     // Ekstrak penanda khusus kendaraan
     $isMutasi       = !empty($kendaraan['is_mutasi']);
@@ -728,6 +743,56 @@ function getTarifSwdkllj(
     }
 
 
+    $isUmum = (strpos($kGunaUpper, 'UMUM') !== false || strpos($kJrUpper, 'ANGKUTAN UMUM') !== false)
+        && strpos($kJrUpper, 'BUKAN ANGKUTAN UMUM') === false;
+
+    // Tarif khusus Ambulance (Golongan A: pokok Rp 0 + admin Rp 3.000/tahun, bebas denda SWDKLLJ).
+    // Prioritaskan K_JR Samsat; fallback jenis/penggunaan hanya dipakai bila K_JR kosong (mis. simulasi manual).
+    $isAmbulanceSw = ($kJrUpper !== '')
+        ? (strpos($kJrUpper, 'AMBULAN') !== false || $kJrUpper === 'A2')
+        : (strpos($jenisUpper, 'AMBULAN') !== false || strpos($kGunaUpper, 'AMBULAN') !== false);
+
+    if ($isAmbulanceSw) {
+        $tarifA = $getTarif('A');
+        return [
+            'golongan' => $tarifA['golongan'],
+            'tarif'    => 0,
+            'admin'    => $tarifA['admin'] > 0 ? $tarifA['admin'] : 3000,
+        ];
+    }
+
+    /*
+     * Prioritas 1: Klasifikasi langsung berbasis K_JR resmi dari Samsat / Jasa Raharja
+     * agar kendaraan seperti Kijang 1.780cc (D4), Pajero/Outlander/Taft (D3), APV Umum (D5),
+     * dan Microbus Umum (E4) mengikuti golongan resmi Samsat (DP/DU/EP/EU/F).
+     */
+    if ($kJrUpper !== '') {
+        if (strpos($kJrUpper, 'ALAT BERAT') !== false || strpos($kJrUpper, 'TRAKTOR') !== false || strpos($kJrUpper, 'CRANE') !== false || strpos($kJrUpper, 'EXCAVATOR') !== false || strpos($kJrUpper, 'FORKLIFT') !== false) {
+            return $getTarif('B');
+        }
+        if (strpos($kJrUpper, 'MIKROBUS') !== false || strpos($kJrUpper, 'MICROBUS') !== false || strpos($kJrUpper, 'BUS') !== false) {
+            if (strpos($kJrUpper, 'BUKAN ANGKUTAN UMUM') !== false) {
+                return $getTarif('EP');
+            }
+            if (strpos($kJrUpper, 'ANGKUTAN UMUM') !== false || $isUmum) {
+                return $getTarif('EU');
+            }
+            return $getTarif('EP');
+        }
+        if (strpos($kJrUpper, 'MOBIL PENUMPANG ANGKUTAN UMUM') !== false) {
+            return $getTarif(($isiCylinder <= 1600 || strpos($kJrUpper, '1600') !== false) ? 'DU' : 'EU');
+        }
+        if (strpos($kJrUpper, 'MOBIL PENUMPANG BUKAN ANGKUTAN UMUM') !== false || $kJrUpper === 'JEEP') {
+            return $getTarif('DP');
+        }
+        if (strpos($kJrUpper, 'TRUCK') !== false || strpos($kJrUpper, 'TRUK') !== false || strpos($kJrUpper, '> 2400') !== false || strpos($kJrUpper, '>2400') !== false) {
+            return $getTarif('F');
+        }
+        if (strpos($kJrUpper, 'MOBIL BARANG') !== false || strpos($kJrUpper, 'PICK') !== false) {
+            return $getTarif($isiCylinder > 2400 ? 'F' : 'DP');
+        }
+    }
+
     /*
      * Deteksi jenis kendaraan lain menggunakan data keyword dari DB.
      * Keyword diurutkan terpanjang â†’ terpendek (sudah dilakukan di config_loader).
@@ -756,7 +821,7 @@ function getTarifSwdkllj(
         /*
          * Bus umum vs bus pribadi ditentukan oleh K_GUNA.
          */
-        return $getTarif($kGunaUpper === 'UMUM' ? 'EU' : 'EP');
+        return $getTarif($isUmum ? 'EU' : 'EP');
     }
 
     if ($detectedJenis === 'TRUCK') {
@@ -774,7 +839,7 @@ function getTarifSwdkllj(
     /*
      * Mobil penumpang umum dengan kapasitas silinder <= 1600cc.
      */
-    if ($kGunaUpper === 'UMUM' && $isiCylinder <= 1600) {
+    if ($isUmum && $isiCylinder <= 1600) {
         return $getTarif('DU');
     }
 
@@ -828,51 +893,10 @@ function hitungSwdkllj(
     $dendaT4 = (int)min(round($tarifTahunan * 1.00), $maxDenda); // > 270 hari
 
     // Bentuk Periode (Sama seperti PKB)
-
-   
-    // Bentuk Periode (Sama seperti PKB)
     $today = new DateTime('today');
     $periodStart = buatTanggal($sdNotice);
-    $periods = [];
-    $isValidDate = true;
-
-    if (!$periodStart) {
-        $isValidDate = false;
-        $periodEnd = clone $today;
-        $periodEnd->modify('+1 year');
-        $periods[] = ['start' => clone $today, 'end' => clone $periodEnd];
-    } else {
-        $current = clone $periodStart;
-        $guard   = 0;
-        if ($periodStart >= $today) {
-            $periodEnd = clone $current;
-            $periodEnd->modify('+1 year');
-            $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-        } else {
-            while ($current < $today && $guard < 25) {
-                $periodEnd = clone $current;
-                $periodEnd->modify('+1 year');
-                $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-                $current = $periodEnd;
-                $guard++;
-            }
-            if ($current >= $today && $guard < 25) {
-                $daysToJt = (int)$today->diff($current)->days;
-                if ($daysToJt <= 90) {
-                    $periodEnd = clone $current;
-                    $periodEnd->modify('+1 year');
-                    $periods[] = ['start' => clone $current, 'end' => clone $periodEnd];
-                }
-            }
-        }
-    }
-
-    // === TAMBAHKAN LOGIKA INI ===
-    // Batasi maksimal 5 tahun (ambil 5 data terbaru dari belakang)
-    if (count($periods) > 5) {
-        $periods = array_slice($periods, -5);
-    }
-    // ============================
+    $isValidDate = ($periodStart !== null);
+    $periods     = buatPeriodePajak($periodStart, $today);
 
     $jumlahTahun = count($periods);
     $tahunTotal = min(5, max(1, $jumlahTahun));

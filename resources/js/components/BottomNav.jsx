@@ -2,27 +2,30 @@ import React from 'react';
 import {
   IconHome2,
   IconReceiptTax,
+  IconBuildingBank,
   IconCalculator,
   IconRefresh,
   IconDatabase,
   IconHistory
 } from '@tabler/icons-react';
 
-export default function BottomNav({ activeTab, setActiveTab, currentUser }) {
+export default function BottomNav({ activeTab, setActiveTab, currentUser, canAccessMenu }) {
   const isAdmin = currentUser?.role === 'admin';
+  const can = (tabId) => {
+    if (canAccessMenu) return canAccessMenu(tabId);
+    if (tabId === 'simulasi' || tabId === 'njkb') return isAdmin;
+    return true;
+  };
 
   const tabs = [
     { id: 'home', label: 'Beranda', icon: IconHome2 },
     { id: 'cek', label: 'Cek Pajak', icon: IconReceiptTax },
-    ...(isAdmin ? [
-      { id: 'simulasi', label: 'Simulasi', icon: IconCalculator },
-    ] : []),
+    { id: 'prontt', label: 'PRO NTT', icon: IconBuildingBank },
+    { id: 'simulasi', label: 'Simulasi', icon: IconCalculator },
     { id: 'bbn2', label: 'Balik Nama', icon: IconRefresh },
-    ...(isAdmin ? [
-      { id: 'njkb', label: 'NJKB', icon: IconDatabase },
-    ] : []),
+    { id: 'njkb', label: 'NJKB', icon: IconDatabase },
     { id: 'riwayat', label: 'Riwayat', icon: IconHistory },
-  ];
+  ].filter((t) => can(t.id));
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 flex justify-center pointer-events-none">

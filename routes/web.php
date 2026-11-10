@@ -62,6 +62,9 @@ foreach ($subPrefixes as $subPrefix) {
             Route::get('/njkb/nopol', [PwaApiController::class, 'checkNjkbByNopol']);
             Route::get('/njkb', [PwaApiController::class, 'searchNjkb']);
             Route::get('/config', [PwaApiController::class, 'config']);
+            Route::post('/pro-ntt/bayar', [PwaApiController::class, 'proNttBayar']);
+            Route::post('/pro-ntt/status', [PwaApiController::class, 'proNttStatus']);
+            Route::get('/pro-ntt/history', [PwaApiController::class, 'proNttHistory']);
         });
 }
 

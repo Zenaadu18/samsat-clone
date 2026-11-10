@@ -35,44 +35,7 @@ class SimulationService
      */
     protected function buatPeriodeSimulasi(?DateTime $periodStart, DateTime $simDate): array
     {
-        $periods = [];
-        if (!$periodStart) {
-            $end = clone $simDate;
-            $end->modify('+1 year');
-            $periods[] = ['start' => clone $simDate, 'end' => $end];
-            return $periods;
-        }
-
-        $current = clone $periodStart;
-        $guard = 0;
-        if ($periodStart >= $simDate) {
-            $periodEnd = clone $current;
-            $periodEnd->modify('+1 year');
-            $periods[] = ['start' => clone $current, 'end' => $periodEnd];
-        } else {
-            while ($current < $simDate && $guard < 25) {
-                $periodEnd = clone $current;
-                $periodEnd->modify('+1 year');
-                $periods[] = ['start' => clone $current, 'end' => $periodEnd];
-                $current = $periodEnd;
-                $guard++;
-            }
-
-            if ($current >= $simDate && $guard < 25) {
-                $daysToJt = (int)$simDate->diff($current)->days;
-                if ($daysToJt <= 90) {
-                    $periodEnd = clone $current;
-                    $periodEnd->modify('+1 year');
-                    $periods[] = ['start' => clone $current, 'end' => $periodEnd];
-                }
-            }
-        }
-
-        if (count($periods) > 5) {
-            $periods = array_slice($periods, -5);
-        }
-
-        return $periods;
+        return \buatPeriodePajak($periodStart, $simDate);
     }
 
     /**

@@ -8,6 +8,9 @@ use mysqli;
 
 class TaxCalculationService
 {
+    protected bool $lastPrimaryNetworkError = false;
+    protected bool $lastBackupNetworkError = false;
+
     /**
      * Memeriksa apakah saat ini berada di luar jam operasional API Utama Samsat NTT:
      * - API Utama aktif: 00:01 WITA s/d 21:00 WITA (mengembalikan false).
@@ -52,6 +55,7 @@ class TaxCalculationService
      */
     protected function fetchFromPrimarySamsat(string $nopolClean, ?array $dbKonfigurasi = null): ?array
     {
+        $this->lastPrimaryNetworkError = false;
         $getNopolUrl = $dbKonfigurasi['api_url_samsat'] ?? 'https://dash.bpad.nttprov.go.id/pajak/webdtd/pendataan/core/php/getnopol.php';
 
         try {
@@ -81,11 +85,20 @@ class TaxCalculationService
 
             if ($response !== false && $httpCode >= 200 && $httpCode < 300) {
                 $decoded = json_decode($response, true);
-                if (is_array($decoded) && !empty($decoded['Merk']) && ($decoded['status'] ?? '') !== 'timeup') {
-                    return $decoded;
+                if (is_array($decoded)) {
+                    if (!empty($decoded['Merk']) && ($decoded['status'] ?? '') !== 'timeup') {
+                        return $decoded;
+                    }
+                    if (($decoded['status'] ?? '') === 'timeup') {
+                        $this->lastPrimaryNetworkError = true;
+                    }
+                    return null;
                 }
             }
-        } catch (\Throwable $e) {}
+            $this->lastPrimaryNetworkError = true;
+        } catch (\Throwable $e) {
+            $this->lastPrimaryNetworkError = true;
+        }
 
         return null;
     }
@@ -95,14 +108,17 @@ class TaxCalculationService
      */
     protected function fetchFromBackupApi(string $nopolClean, ?array $dbKonfigurasi = null): ?array
     {
+        $this->lastBackupNetworkError = false;
         $backupUrl = $dbKonfigurasi['api_url_backup'] ?? 'http://api.senacode.my.id/kendaraan/';
         $backupKey = $dbKonfigurasi['api_key_backup'] ?? 'senacode-samsat-key-2026';
 
-        // Siapkan kandidat URL (dukung fallback HTTP jika HTTPS Cloudflare timeout/handshake 525)
+        // Siapkan kandidat URL (dukung fallback HTTP <-> HTTPS jika salah satu gagal/timeout Cloudflare)
         $cleanBackupUrl = rtrim($backupUrl, '/');
         $candidateUrls = [$cleanBackupUrl];
         if (stripos($cleanBackupUrl, 'https://') === 0) {
             $candidateUrls[] = preg_replace('/^https:\/\//i', 'http://', $cleanBackupUrl);
+        } elseif (stripos($cleanBackupUrl, 'http://') === 0) {
+            $candidateUrls[] = preg_replace('/^http:\/\//i', 'https://', $cleanBackupUrl);
         }
         $candidateUrls = array_values(array_unique($candidateUrls));
 
@@ -120,8 +136,8 @@ class TaxCalculationService
                         'X-API-Key: ' . $backupKey,
                         'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     ],
-                    CURLOPT_CONNECTTIMEOUT => 5,
-                    CURLOPT_TIMEOUT        => 8,
+                    CURLOPT_CONNECTTIMEOUT => 8,
+                    CURLOPT_TIMEOUT        => 20,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_SSL_VERIFYPEER => false,
                     CURLOPT_SSL_VERIFYHOST => 0
@@ -129,12 +145,40 @@ class TaxCalculationService
 
                 $response = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curlErr  = curl_error($ch);
                 curl_close($ch);
 
                 if ($response !== false && $httpCode >= 200 && $httpCode < 300) {
-                    break;
+                    $decoded = json_decode($response, true);
+                    if (is_array($decoded)) {
+                        $this->lastBackupNetworkError = false;
+                        break;
+                    }
                 }
-            } catch (\Throwable $e) {}
+
+                // Jika server mengembalikan 404 JSON yang valid (data memang tidak ada), hentikan fallback skema lain
+                if ($response !== false && $httpCode === 404) {
+                    $decoded = json_decode($response, true);
+                    if (is_array($decoded)) {
+                        $this->lastBackupNetworkError = false;
+                        return null;
+                    }
+                }
+
+                $this->lastBackupNetworkError = true;
+                \Illuminate\Support\Facades\Log::warning('Backup API Samsat error/timeout', [
+                    'nopol'     => $nopolClean,
+                    'url'       => $url,
+                    'http_code' => $httpCode,
+                    'curl_err'  => $curlErr,
+                ]);
+            } catch (\Throwable $e) {
+                $this->lastBackupNetworkError = true;
+                \Illuminate\Support\Facades\Log::warning('Backup API Samsat exception: ' . $e->getMessage(), [
+                    'nopol' => $nopolClean,
+                    'url'   => $url,
+                ]);
+            }
         }
 
         if ($response === false || $httpCode < 200 || $httpCode >= 300) {
@@ -230,15 +274,17 @@ class TaxCalculationService
 
         $nopolClean = strtoupper(preg_replace('/\s+/', '', $nopol));
         $cacheKey = 'samsat_nopol_' . md5($nopolClean);
+        $isNight = $this->isSamsatNightTime($dbKonfigurasi);
 
-        // Cek cache lokal terlebih dahulu
+        // Cek cache lokal terlebih dahulu (abaikan cache API backup saat jam operasional utama agar RubahBentuk & K_JR lengkap dari Samsat)
         $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
-        if (is_array($cached) && !empty($cached['Merk'])) {
+        if (is_array($cached) && !empty($cached['Merk']) && (empty($cached['is_backup_api']) || $isNight)) {
             return $cached;
         }
 
+        $this->lastPrimaryNetworkError = false;
+        $this->lastBackupNetworkError  = false;
         $apiData = null;
-        $isNight = $this->isSamsatNightTime($dbKonfigurasi);
 
         if ($isNight) {
             // Periode non-aktif API Utama (21:01 - 00:00 WITA):
@@ -272,10 +318,14 @@ class TaxCalculationService
             if (is_array($cached) && !empty($cached['Merk'])) {
                 return $cached;
             }
+            if ($this->lastPrimaryNetworkError && $this->lastBackupNetworkError) {
+                throw new Exception('Koneksi ke server Samsat / API Cadangan sedang timeout atau sibuk. Silakan coba beberapa saat lagi.', 503);
+            }
             throw new Exception('Maaf, Data Nomor Polisi tidak ditemukan.', 404);
         }
 
-        \Illuminate\Support\Facades\Cache::put($cacheKey, $apiData, 86400 * 7);
+        $cacheTtl = empty($apiData['is_backup_api']) ? (86400 * 7) : 900;
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $apiData, $cacheTtl);
 
         return $apiData;
     }
@@ -387,46 +437,112 @@ class TaxCalculationService
     }
 
     /**
-     * Mencari NJUB (Nilai Jual Ubah Bentuk).
+     * Query satu pasangan (rubah_bentuk, jenis_dasar, tahun) di tabel njmkb_data.
      */
-    public function findNjub(string $rubahBentuk, string $jenisKend, int $tahun): float
+    protected function queryNjubExact(string $rubahBentuk, string $jenisDasar, int $tahunCari): ?float
     {
         global $conn;
         if (!$conn) {
             require_once app_path('Helpers/db.php');
         }
 
-        $njub = 0.0;
-        if ($rubahBentuk !== '' && $rubahBentuk !== '-') {
-            $tahunCari = $tahun < 2006 ? 2006 : $tahun;
-            if ($conn && $conn instanceof \mysqli && !$conn->connect_error) {
-                $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
-                if ($stmtNjub) {
-                    $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisKend, $tahunCari);
-                    $stmtNjub->execute();
-                    $rowNjub = $stmtNjub->get_result()->fetch_assoc();
-                    $stmtNjub->close();
-                    if ($rowNjub) {
-                        return (float)$rowNjub['nilai'];
-                    }
+        if ($conn && $conn instanceof \mysqli && !$conn->connect_error) {
+            $stmtNjub = $conn->prepare('SELECT nilai FROM njmkb_data WHERE rubah_bentuk = ? AND jenis_dasar = ? AND tahun = ? LIMIT 1');
+            if ($stmtNjub) {
+                $stmtNjub->bind_param('ssi', $rubahBentuk, $jenisDasar, $tahunCari);
+                $stmtNjub->execute();
+                $rowNjub = $stmtNjub->get_result()->fetch_assoc();
+                $stmtNjub->close();
+                if ($rowNjub) {
+                    return (float)$rowNjub['nilai'];
                 }
             }
+        }
 
-            // Fallback via Laravel Query Builder (DB Facade)
-            if (class_exists(\Illuminate\Support\Facades\DB::class)) {
-                try {
-                    $rowDb = \Illuminate\Support\Facades\DB::table('njmkb_data')
-                        ->where('rubah_bentuk', $rubahBentuk)
-                        ->where('jenis_dasar', $jenisKend)
-                        ->where('tahun', $tahunCari)
-                        ->first();
-                    if ($rowDb) {
-                        return (float)$rowDb->nilai;
-                    }
-                } catch (\Throwable $e) {}
+        if (class_exists(\Illuminate\Support\Facades\DB::class)) {
+            try {
+                $rowDb = \Illuminate\Support\Facades\DB::table('njmkb_data')
+                    ->where('rubah_bentuk', $rubahBentuk)
+                    ->where('jenis_dasar', $jenisDasar)
+                    ->where('tahun', $tahunCari)
+                    ->first();
+                if ($rowDb) {
+                    return (float)$rowDb->nilai;
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        return null;
+    }
+
+    /**
+     * Mencari NJUB (Nilai Jual Ubah Bentuk).
+     */
+    public function findNjub(string $rubahBentuk, string $jenisKend, int $tahun): float
+    {
+        $rbUpper = preg_replace('/\s+/', ' ', strtoupper(trim($rubahBentuk)));
+        $jenisUpper = preg_replace('/\s+/', ' ', strtoupper(trim($jenisKend)));
+
+        if ($rbUpper === '' || $rbUpper === '-' || strpos($rbUpper, 'TIDAK ADA PERUBAHAN') !== false) {
+            return 0.0;
+        }
+
+        $tahunCari = $tahun < 2006 ? 2006 : $tahun;
+        $rubahAliases = [
+            'TANGKI'           => 'TANKI',
+            'REFRIGERATOR'     => 'REFIGERATOR',
+            'TANDEM'           => 'TANDUM',
+            'VACUUM'           => 'VACUM',
+            'TANGGA HIDROLIK'  => 'TANGGA HYDROLIC',
+            'TANGGA HYDRAULIC' => 'TANGGA HYDROLIC',
+        ];
+        $normalizeRb = static fn(string $val): string => $rubahAliases[$val] ?? $val;
+
+        $candidates = [
+            [$normalizeRb($rbUpper), $jenisUpper],
+        ];
+        if (isset($rubahAliases[$rbUpper])) {
+            array_unshift($candidates, [$rbUpper, $jenisUpper]);
+        }
+
+        // Di njmkb_data, prefiks seperti TRONTON tersimpan di kolom jenis_dasar (mis. 'TRONTON BAK BESI' -> jenis_dasar 'TRONTON', rubah_bentuk 'BAK BESI')
+        $baseTypes = ['TRACTOR HEAD', 'LIGHT TRUCK', 'DOUBLE CABIN', 'BLIND VAN', 'MICROBUS', 'MINIBUS', 'PICK UP', 'TRONTON', 'TRUCK'];
+        foreach ($baseTypes as $base) {
+            $prefix = $base . ' ';
+            if (strpos($rbUpper, $prefix) === 0) {
+                $remRb = trim(substr($rbUpper, strlen($prefix)));
+                if ($remRb !== '') {
+                    $candidates[] = [$normalizeRb($remRb), $base];
+                }
             }
         }
-        return $njub;
+
+        foreach ($candidates as [$candRb, $candJenis]) {
+            $found = $this->queryNjubExact($candRb, $candJenis, $tahunCari);
+            if ($found !== null) {
+                return $found;
+            }
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Tentukan NJUB berdasarkan sumber NJKB:
+     * hanya ditambahkan jika NJKB diambil dari database lokal, bukan dari endpoint API cek_pajakk.
+     */
+    public function resolveNjubForSource(string $sumberNjkb, string $rubahBentuk, string $jenisKend, int $tahun): float
+    {
+        $endpointSources = [
+            'API Realtime (cek_pajak)',
+            'API Realtime BPAD NTT (cek_pajak)',
+        ];
+
+        if (in_array($sumberNjkb, $endpointSources, true)) {
+            return 0.0;
+        }
+
+        return $this->findNjub($rubahBentuk, $jenisKend, $tahun);
     }
 
     /**
@@ -481,6 +597,7 @@ class TaxCalculationService
         $isBadanUsaha   = function_exists('isBadanUsaha') ? isBadanUsaha($nama, $nmUsaha) : false;
         $isUmumNonBadan = ($isAngkutanUmum && !$isBadanUsaha);
         $kGunaHitung    = $isUmumNonBadan ? 'PRIBADI' : $kGuna;
+        $isRoda23       = (strpos($jenisKend, 'MOTOR') !== false || strpos($kJr, 'MOTOR') !== false || preg_match('/MOTOR|R2|R3/i', $jenisKend));
 
         $presetNjkb = !empty($apiData['njkb_api']) ? (float)$apiData['njkb_api'] : null;
         $presetBobot = !empty($apiData['bobot_api']) ? (float)$apiData['bobot_api'] : null;
@@ -497,26 +614,23 @@ class TaxCalculationService
             $dpPkb = $njkb * $bobot;
 
             // Rincian resmi langsung dari penetapan BPAD NTT Bank NTT
-            $pkbBerjalanKotor = (int)($apiTaxDetail['total_byrprov'] ?? $apiTaxDetail['pkb']);
-            $pkbBerjalanNet   = (int)$apiTaxDetail['pkb'];
-            $diskonPkbBerjalan= max(0, $pkbBerjalanKotor - $pkbBerjalanNet);
-
-            $pkbTunggakan = (int)($apiTaxDetail['tpkb'] ?? 0);
-            $pkbBerjalan  = $pkbBerjalanKotor; // Pokok sebelum diskon untuk rincian resmi
-            $pkbTotal     = $pkbBerjalan + $pkbTunggakan;
+            // total_byrprov / total_byropsen = pokok sesudah potongan DP 17,5% (bila memenuhi syarat), SEBELUM diskon taat & online
+            // pkb / opsen_pkb               = pokok SETELAH diskon taat + diskon online
+            $pkbBerjalanKotor   = (int)($apiTaxDetail['total_byrprov'] ?? $apiTaxDetail['pkb']);
+            $pkbBerjalanNet     = (int)$apiTaxDetail['pkb'];
+            $pkbTunggakan       = (int)($apiTaxDetail['tpkb'] ?? 0);
 
             $opsenBerjalanKotor = (int)($apiTaxDetail['total_byropsen'] ?? $apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalanKotor * 0.66)));
             $opsenBerjalanNet   = (int)($apiTaxDetail['opsen_pkb'] ?? (floor($pkbBerjalanNet * 0.66)));
-            $diskonOpsenBerjalan= max(0, $opsenBerjalanKotor - $opsenBerjalanNet);
-            $opsenPkb           = $opsenBerjalanKotor; // Pokok sebelum diskon untuk rincian resmi
+            $opsenTunggakan     = (int)($apiTaxDetail['opsen_tpkb'] ?? 0);
 
-            $dendaPkb     = (int)($apiTaxDetail['dpkb'] ?? 0);
-            $dendaOpsenPkb= (int)($apiTaxDetail['opsen_dpkb'] ?? 0);
+            $dendaPkb           = (int)($apiTaxDetail['dpkb'] ?? 0);
+            $dendaOpsenPkb      = (int)($apiTaxDetail['opsen_dpkb'] ?? 0);
 
-            $swdklljBerjalan  = (int)($apiTaxDetail['swdkllj'] ?? 143000);
-            $swdklljTunggakan = (int)($apiTaxDetail['tswdkllj'] ?? 0);
-            $swdkllj          = $swdklljBerjalan + $swdklljTunggakan;
-            $dendaSwdkllj     = (int)($apiTaxDetail['dswdkllj'] ?? 0);
+            $swdklljBerjalan    = (int)($apiTaxDetail['swdkllj'] ?? 143000);
+            $swdklljTunggakan   = (int)($apiTaxDetail['tswdkllj'] ?? 0);
+            $swdkllj            = $swdklljBerjalan + $swdklljTunggakan;
+            $dendaSwdkllj       = (int)($apiTaxDetail['dswdkllj'] ?? 0);
 
             $biayaStnk = (int)($apiTaxDetail['biaya_stnk'] ?? 0);
             $biayaTnkb = (int)($apiTaxDetail['biaya_tnkb'] ?? 0);
@@ -529,25 +643,29 @@ class TaxCalculationService
                 'keterangan' => ($biayaStnk > 0) ? 'Masa Berlaku STNK Habis' : 'STNK Masih Berlaku'
             ];
 
-            // TOTAL TAGIHAN SEBELUM DISKON (Total Tagihan Normal Samsat)
-            $totalByrNormal = (int)($apiTaxDetail['total_byr'] ?? ($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']));
-            $totalBayarNet  = (int)($apiTaxDetail['total_bayar'] ?? ($pkbBerjalanNet + $pkbTunggakan + $opsenBerjalanNet + $swdkllj + $dendaSwdkllj + $stnkData['total']));
-            $diskonDigital  = max(0, $totalByrNormal - $totalBayarNet);
-            $totalPajak     = $totalByrNormal;
-            $sumPkbNor      = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
+            $sumPkbNor = (int)($apiTaxDetail['sum_pkb_nor'] ?? 0);
+            $swTarifInfo = function_exists('getTarifSwdkllj')
+                ? \getTarifSwdkllj($jenisKend, $kJr, $isiCylinder, $kGuna)
+                : ['golongan' => 'DP', 'tarif' => 140000, 'admin' => 3000];
+            $swPerTahun = max(1, (int)$swTarifInfo['tarif'] + (int)$swTarifInfo['admin']);
+            $tahunTunggakan = $swdklljTunggakan > 0 ? (int)round($swdklljTunggakan / $swPerTahun) : 0;
+            $tahunBerjalan  = 1;
+            $jumlahTahunPajak = $tahunTunggakan + 1;
+
+            $diskonPkbBerjalan   = 0;
+            $diskonOpsenBerjalan = 0;
 
             if ($isUmumNonBadan && $dpPkb > 0) {
                 // Sesuai UU HKPD, kendaraan Angkutan Umum perorangan dikenakan tarif Pribadi (1,2%)
-                $pkbBerjalanKotor = (int)round($dpPkb * 0.012);
-                $pkbBerjalanNet   = $pkbBerjalanKotor;
-                $diskonPkbBerjalan= 0;
+                $pkbBerjalanKotor   = (int)round($dpPkb * 0.012);
+                $pkbBerjalanNet     = $pkbBerjalanKotor;
                 $opsenBerjalanKotor = (int)floor($pkbBerjalanKotor * 0.66);
                 $opsenBerjalanNet   = $opsenBerjalanKotor;
-                $diskonOpsenBerjalan= 0;
-                $pkbTotal     = $pkbBerjalanKotor + $pkbTunggakan;
-                $opsenPkb     = $opsenBerjalanKotor;
+                $pkbBerjalan        = $pkbBerjalanKotor;
+                $pkbTotal           = $pkbBerjalan + $pkbTunggakan;
+                $opsenPkb           = $opsenBerjalanKotor + $opsenTunggakan;
 
-                $totalByrNormal = (int)($pkbTotal + $opsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']);
+                $totalByrNormal = (int)($pkbTotal + $opsenPkb + $dendaPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']);
                 $totalBayarNet  = $totalByrNormal;
                 $diskonDigital  = 0;
                 $totalPajak     = $totalByrNormal;
@@ -555,25 +673,81 @@ class TaxCalculationService
                 $tarifLama = 1.5;
                 $tarifBaru = 1.2;
             } else {
+                // Cek apakah API Bank NTT menyertakan diskon taat pajak (pembayaran lebih awal sebelum JT)
+                $todayCek   = new \DateTime('today');
+                $tglNotCek  = \buatTanggal($sdNotice);
+                $pctOnline  = $isRoda23 ? 0.05 : 0.02;
+                $apiRatio   = $pkbBerjalanKotor > 0 ? (($pkbBerjalanKotor - $pkbBerjalanNet) / $pkbBerjalanKotor) : 0.0;
+
+                $amnestiAktifCek = !empty($dbKonfigurasi['amnesti_aktif']) && (int)$dbKonfigurasi['amnesti_aktif'] === 1;
+                if ($amnestiAktifCek) {
+                    $sAmn = \buatTanggal($dbKonfigurasi['amnesti_mulai'] ?? '2026-09-01');
+                    $eAmn = \buatTanggal($dbKonfigurasi['amnesti_selesai'] ?? '2026-11-30');
+                    if (!$sAmn || !$eAmn || $todayCek < $sAmn || $todayCek > $eAmn) {
+                        $amnestiAktifCek = false;
+                    }
+                }
+
+                $pctTaat = 0.0;
+                if (
+                    $amnestiAktifCek &&
+                    $tahunTunggakan === 0 &&
+                    $pkbTunggakan === 0 &&
+                    $dendaSwdkllj === 0 &&
+                    $dendaPkb === 0 &&
+                    $tglNotCek &&
+                    $tglNotCek >= $todayCek &&
+                    $apiRatio >= ($pctOnline + 0.05)
+                ) {
+                    $selisihHariTaat = (int)$todayCek->diff($tglNotCek)->days;
+                    if ($selisihHariTaat <= 90) {
+                        if ($isRoda23) {
+                            if ($selisihHariTaat >= 61) {
+                                $pctTaat = (float)($dbKonfigurasi['amnesti_diskon_pkb_awal_r2_90hr'] ?? 0.20);
+                            } elseif ($selisihHariTaat >= 31) {
+                                $pctTaat = (float)($dbKonfigurasi['amnesti_diskon_pkb_awal_r2_60hr'] ?? 0.15);
+                            } else {
+                                $pctTaat = (float)($dbKonfigurasi['amnesti_diskon_pkb_awal_r2_30hr'] ?? 0.10);
+                            }
+                        } else {
+                            $pctTaat = (float)($dbKonfigurasi['amnesti_diskon_pkb_awal_r4'] ?? 0.10);
+                        }
+                    }
+                }
+
+                if ($pctTaat > 0) {
+                    $diskonPkbBerjalan   = (int)floor($pkbBerjalanKotor * $pctTaat);
+                    $pkbBerjalan         = $pkbBerjalanKotor - $diskonPkbBerjalan;
+                    $diskonOpsenBerjalan = (int)round($opsenBerjalanKotor * $pctTaat);
+                    $opsenPkb            = ($opsenBerjalanKotor - $diskonOpsenBerjalan) + $opsenTunggakan;
+                } else {
+                    $pkbBerjalan = $pkbBerjalanKotor;
+                    $opsenPkb    = $opsenBerjalanKotor + $opsenTunggakan;
+                }
+
+                $pkbTotal       = $pkbBerjalan + $pkbTunggakan;
+                $totalByrNormal = (int)($pkbTotal + $opsenPkb + $dendaPkb + $dendaOpsenPkb + $swdkllj + $dendaSwdkllj + $stnkData['total']);
+                $totalPajak     = $totalByrNormal;
+                $totalBayarNet  = (int)($apiTaxDetail['total_bayar'] ?? $totalByrNormal);
+                $diskonDigital  = max(0, $totalPajak - $totalBayarNet);
+
                 $tarifLama = \getTarifPkb($kGuna, false, $isKhusus05) * 100;
                 $tarifBaru = \getTarifPkb($kGuna, true, $isKhusus05) * 100;
             }
 
-            $tahunTunggakan = !empty($sdNotice) && \buatTanggal($sdNotice) < new \DateTime('today') ? max(0, (int)\buatTanggal($sdNotice)->diff(new \DateTime('today'))->y) : 0;
-            $tahunBerjalan  = 1;
-            $jumlahTahunPajak = $tahunTunggakan + 1;
+            $waivedTunggakanPkb = ($tahunTunggakan > 0 && $sumPkbNor > $pkbBerjalanKotor) ? ($sumPkbNor - $pkbBerjalanKotor) : 0;
 
             $pkbData = [
                 'pkb_berjalan'               => $pkbBerjalan,
                 'pkb_berjalan_kotor'         => $pkbBerjalanKotor,
                 'diskon_pkb_berjalan'        => $diskonPkbBerjalan,
                 'pkb_tunggakan'              => $pkbTunggakan,
-                'pkb_tunggakan_kotor'        => max(0, $sumPkbNor - $pkbBerjalanKotor),
-                'diskon_pkb_tunggakan'       => max(0, $sumPkbNor - $pkbBerjalanKotor),
+                'pkb_tunggakan_kotor'        => $waivedTunggakanPkb,
+                'diskon_pkb_tunggakan'       => $waivedTunggakanPkb,
                 'pkb_total'                  => $pkbTotal,
                 'opsen_pkb'                  => $opsenPkb,
                 'opsen_pkb_berjalan'         => $opsenBerjalanKotor,
-                'opsen_pkb_tunggakan'        => 0,
+                'opsen_pkb_tunggakan'        => $opsenTunggakan,
                 'diskon_opsen_pkb_berjalan'  => $diskonOpsenBerjalan,
                 'denda_pkb'                  => $dendaPkb,
                 'denda_pkb_total'            => $dendaPkb,
@@ -590,9 +764,9 @@ class TaxCalculationService
             ];
 
             $swdklljData = [
-                'golongan'               => ($isiCylinder <= 1600 && strpos($jenisKend, 'MOTOR') === false) ? 'DP' : 'EP',
-                'tarif'                  => ($isiCylinder <= 1600 && strpos($jenisKend, 'MOTOR') === false) ? 140000 : 150000,
-                'admin'                  => 3000,
+                'golongan'               => $swTarifInfo['golongan'],
+                'tarif'                  => (int)$swTarifInfo['tarif'],
+                'admin'                  => (int)$swTarifInfo['admin'],
                 'jumlah_tahun'           => $jumlahTahunPajak,
                 'total'                  => $swdkllj,
                 'pokok_berjalan'         => $swdklljBerjalan,
@@ -612,7 +786,6 @@ class TaxCalculationService
             $bobot = $njkbInfo['bobot'];
             $sumberNjkb = $njkbInfo['sumber'];
             $isNjkbEstimasi = $njkbInfo['is_estimasi'];
-            $isFromApi = ($sumberNjkb === 'API Realtime (cek_pajak)');
 
             // Safety net kategori jika NJKB <= 0
             if ($njkb <= 0.0) {
@@ -629,11 +802,8 @@ class TaxCalculationService
                 }
             }
 
-            // NJUB (Nilai Jual Ubah Bentuk) jika NJKB dari database lokal
-            $njub = 0.0;
-            if (!$isFromApi && $rubahBentuk !== '' && $rubahBentuk !== '-') {
-                $njub = $this->findNjub($rubahBentuk, $jenisKend, $tahun);
-            }
+            // NJUB (Nilai Jual Ubah Bentuk) hanya ditambahkan jika NJKB berasal dari database lokal
+            $njub = $this->resolveNjubForSource($sumberNjkb, $rubahBentuk, $jenisKend, $tahun);
 
             $dpPkb = ($njkb + $njub) * $bobot;
 
@@ -706,7 +876,6 @@ class TaxCalculationService
 
             // Insentif Tambahan Pembayaran Online (PRO NTT / SIGNAL):
             // Sesuai Pergub 64: Tambahan diskon 5% untuk R2/R3 atau 2% untuk R4+
-            $isRoda23 = (strpos($jenisKend, 'MOTOR') !== false || strpos($kJr, 'MOTOR') !== false || preg_match('/MOTOR|R2|R3/i', $jenisKend));
             $pctDiskonOnline    = $isRoda23 ? 0.05 : 0.02;
             $diskonDigitalPkb   = (int)floor($pkbBerjalanKotor * $pctDiskonOnline);
             $diskonDigitalOpsen = (int)round($diskonDigitalPkb * 0.66);
@@ -929,5 +1098,73 @@ class TaxCalculationService
             'tarif_swdkllj' => $dbTarifSwdkllj ?? [],
             'tarif_stnk'    => $dbTarifStnkTnkb ?? [],
         ];
+    }
+
+    /**
+     * Peta kunci konfigurasi visibilitas menu user PWA.
+     */
+    public const MENU_CONFIG_MAP = [
+        'cek'                     => ['kunci' => 'menu_cek', 'default' => true],
+        'prontt'                  => ['kunci' => 'menu_prontt', 'default' => true],
+        'tombol_bayar_prontt_raw' => ['kunci' => 'fitur_tombol_bayar_prontt', 'default' => true],
+        'bbn2'                    => ['kunci' => 'menu_bbn2', 'default' => true],
+        'simulasi'                => ['kunci' => 'menu_simulasi', 'default' => false],
+        'njkb'                    => ['kunci' => 'menu_njkb', 'default' => false],
+        'riwayat'                 => ['kunci' => 'menu_riwayat', 'default' => true],
+        'info'                    => ['kunci' => 'menu_info', 'default' => true],
+    ];
+
+    /**
+     * Mengambil status aktif/nonaktif setiap menu untuk pengguna non-admin (Opsi A).
+     */
+    public function getMenuVisibility(): array
+    {
+        $configRows = [];
+        try {
+            if (class_exists(\Illuminate\Support\Facades\DB::class)) {
+                $keys = array_column(self::MENU_CONFIG_MAP, 'kunci');
+                $configRows = \Illuminate\Support\Facades\DB::table('konfigurasi')
+                    ->whereIn('kunci', $keys)
+                    ->pluck('nilai', 'kunci')
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            $configRows = [];
+        }
+
+        if (empty($configRows)) {
+            $configRows = $this->getConfig()['konfigurasi'] ?? [];
+        }
+
+        $menus = ['home' => true];
+        foreach (self::MENU_CONFIG_MAP as $menuKey => $meta) {
+            $kunci = $meta['kunci'];
+            if (array_key_exists($kunci, $configRows)) {
+                $val = strtolower(trim((string)$configRows[$kunci]));
+                $menus[$menuKey] = in_array($val, ['1', 'true', 'on', 'yes'], true);
+            } else {
+                $menus[$menuKey] = (bool)$meta['default'];
+            }
+        }
+
+        // Jika menu PRO NTT nonaktif, tombol bayar di hasil Cek Pajak otomatis nonaktif juga
+        $menus['tombol_bayar_prontt'] = (bool)($menus['prontt'] && $menus['tombol_bayar_prontt_raw']);
+
+        return $menus;
+    }
+
+    /**
+     * Mengecek apakah menu tertentu dapat diakses user (Opsi A: role admin selalu bisa akses semua menu).
+     */
+    public function isMenuEnabledForUser(string $menuKey, ?object $user = null): bool
+    {
+        if ($menuKey === 'home') {
+            return true;
+        }
+        if ($user && strtolower((string)($user->role ?? '')) === 'admin') {
+            return true;
+        }
+        $menus = $this->getMenuVisibility();
+        return (bool)($menus[$menuKey] ?? false);
     }
 }

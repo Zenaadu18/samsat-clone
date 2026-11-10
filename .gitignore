@@ -25,3 +25,5 @@ yarn-error.log
 /.vscode
 /scratch
 *.bak
+/Pronttapi/
+/pronttapi/

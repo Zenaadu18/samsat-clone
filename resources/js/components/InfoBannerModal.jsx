@@ -262,22 +262,34 @@ export default function InfoBannerModal({ banner, onClose }) {
   const hasText = Boolean(currentBanner.content && currentBanner.content.trim());
   const hasTitle = Boolean(currentBanner.title && currentBanner.title.trim());
 
+  const imageHeightClass = (hasTitle || hasText)
+    ? 'max-h-[54vh] sm:max-h-[62vh]'
+    : 'max-h-[68vh] sm:max-h-[76vh]';
+
+  const bannerImageElement = hasImage ? (
+    <img
+      src={imageUrl}
+      alt={currentBanner.title || 'Banner'}
+      className={`w-full ${imageHeightClass} object-contain mx-auto transition-transform duration-200 ${currentBanner.link_url ? 'group-hover:opacity-95' : ''}`}
+    />
+  ) : null;
+
   return (
     <div 
-      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fade-in"
+      className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in"
       onClick={(e) => {
         // Klik di area luar card untuk menutup banner
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-sm sm:max-w-md">
+      <div className="relative w-full max-w-md sm:max-w-xl md:max-w-2xl">
         {/* Tombol Panah Prev di Samping Kiri (hanya jika > 1 banner) */}
         {banners.length > 1 && (
           <button
             type="button"
             onClick={handlePrev}
             aria-label="Slide Sebelumnya"
-            className="absolute -left-3 sm:-left-5 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-md backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="absolute -left-2 sm:-left-5 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-md backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <IconChevronLeft size={20} stroke={2.4} className="shrink-0" />
           </button>
@@ -289,7 +301,7 @@ export default function InfoBannerModal({ banner, onClose }) {
             type="button"
             onClick={handleNext}
             aria-label="Slide Berikutnya"
-            className="absolute -right-3 sm:-right-5 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-md backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className="absolute -right-2 sm:-right-5 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-md backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <IconChevronRight size={20} stroke={2.4} className="shrink-0" />
           </button>
@@ -297,7 +309,7 @@ export default function InfoBannerModal({ banner, onClose }) {
 
         {/* Card Banner Bersih & Modern */}
         <div 
-          className="bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden relative flex flex-col max-h-[85vh] animate-scale-in"
+          className="bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden relative flex flex-col max-h-[90vh] animate-scale-in"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -333,18 +345,10 @@ export default function InfoBannerModal({ banner, onClose }) {
                     rel="noopener noreferrer"
                     className="block group cursor-pointer"
                   >
-                    <img
-                      src={imageUrl}
-                      alt={currentBanner.title || 'Banner'}
-                      className="w-full max-h-80 sm:max-h-96 object-contain mx-auto transition-transform duration-200 group-hover:opacity-95"
-                    />
+                    {bannerImageElement}
                   </a>
                 ) : (
-                  <img
-                    src={imageUrl}
-                    alt={currentBanner.title || 'Banner'}
-                    className="w-full max-h-80 sm:max-h-96 object-contain mx-auto"
-                  />
+                  bannerImageElement
                 )}
               </div>
             )}

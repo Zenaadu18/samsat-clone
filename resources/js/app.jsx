@@ -9,12 +9,25 @@ import Bbn2Tab from './pages/Bbn2Tab';
 import NjkbTab from './pages/NjkbTab';
 import InfoTab from './pages/InfoTab';
 import UserActivityTab from './pages/UserActivityTab';
+import ProNttTab from './pages/ProNttTab';
 import UserLoginModal from './components/UserLoginModal';
 import InfoBannerModal from './components/InfoBannerModal';
 import { getApiBase, getAuthToken } from './utils/config';
 import { getDeviceId } from './utils/device';
 
-const ALL_TABS = ['home', 'cek', 'simulasi', 'bbn2', 'njkb', 'riwayat', 'info'];
+const ALL_TABS = ['home', 'cek', 'prontt', 'simulasi', 'bbn2', 'njkb', 'riwayat', 'info'];
+
+const DEFAULT_MENU_CONFIG = {
+  home: true,
+  cek: true,
+  prontt: true,
+  tombol_bayar_prontt: true,
+  bbn2: true,
+  simulasi: false,
+  njkb: false,
+  riwayat: true,
+  info: true,
+};
 
 function App() {
   const [activeTab, setActiveTabState] = useState('home');
@@ -23,6 +36,8 @@ function App() {
   const [simulationNopol, setSimulationNopol] = useState('');
   const [simulationPrefill, setSimulationPrefill] = useState(null);
   const [bbn2Nopol, setBbn2Nopol] = useState('');
+  const [proNttNopol, setProNttNopol] = useState('');
+  const [proNttTaxData, setProNttTaxData] = useState(null);
 
   // State Autentikasi Pengguna (Dukungan localStorage untuk Ingat Saya & sessionStorage untuk sesi sementara)
   const [currentUser, setCurrentUser] = useState(() => {
@@ -34,10 +49,33 @@ function App() {
     }
   });
 
+  const [menuConfig, setMenuConfig] = useState(DEFAULT_MENU_CONFIG);
+
   const isAdmin = currentUser?.role === 'admin';
-  const availableTabs = isAdmin
-    ? ALL_TABS
-    : ['home', 'cek', 'bbn2', 'riwayat', 'info'];
+  const canAccessMenu = useCallback((key) => {
+    if (key === 'home') return true;
+    if (isAdmin) return true;
+    if (key === 'tombol_bayar_prontt') {
+      return menuConfig.prontt !== false && menuConfig.tombol_bayar_prontt !== false;
+    }
+    return menuConfig[key] !== false;
+  }, [isAdmin, menuConfig]);
+
+  const availableTabs = ALL_TABS.filter((tab) => canAccessMenu(tab));
+
+  const fetchAppConfig = useCallback(() => {
+    const apiBase = getApiBase();
+    fetch(`${apiBase}/config`, {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.status === 'success' && res?.data?.menus) {
+          setMenuConfig({ ...DEFAULT_MENU_CONFIG, ...res.data.menus });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // State Banner Informasi
   const [banner, setBanner] = useState(null);
@@ -101,10 +139,15 @@ function App() {
 
     // Verifikasi awal saat pertama kali mount
     verifySession();
+    fetchAppConfig();
 
     // Verifikasi berkala setiap 30 detik & saat window focus (saat tab aktif / layar hp dibuka kembali)
-    const intervalId = setInterval(verifySession, 30000);
-    window.addEventListener('focus', verifySession);
+    const syncAll = () => {
+      verifySession();
+      fetchAppConfig();
+    };
+    const intervalId = setInterval(syncAll, 30000);
+    window.addEventListener('focus', syncAll);
 
     // Ambil Data Banner Pengumuman dari server
     fetch(`${apiBase}/banner`)
@@ -118,12 +161,19 @@ function App() {
 
     return () => {
       clearInterval(intervalId);
-      window.removeEventListener('focus', verifySession);
+      window.removeEventListener('focus', syncAll);
     };
-  }, [handleLogout]);
+  }, [handleLogout, fetchAppConfig]);
+
+  useEffect(() => {
+    if (activeTab !== 'home' && !canAccessMenu(activeTab)) {
+      setActiveTabState('home');
+    }
+  }, [activeTab, canAccessMenu]);
 
   const handleLoginSuccess = (user, token) => {
     setCurrentUser(user);
+    fetchAppConfig();
     // Refresh data banner terbaru dari server agar update yang dipasang admin langsung muncul
     const apiBase = getApiBase();
     fetch(`${apiBase}/banner`)
@@ -152,10 +202,10 @@ function App() {
   };
 
   const setActiveTab = (newTab) => {
-    if (newTab === activeTab) return;
-    if (!isAdmin && (newTab === 'simulasi' || newTab === 'njkb')) {
+    if (!canAccessMenu(newTab)) {
       newTab = 'home';
     }
+    if (newTab === activeTab) return;
     const oldIdx = availableTabs.indexOf(activeTab);
     const newIdx = availableTabs.indexOf(newTab);
     setSlideDirection(newIdx >= oldIdx ? 'right' : 'left');
@@ -180,6 +230,12 @@ function App() {
   const handleSwitchToBbn2 = (nopol) => {
     setBbn2Nopol(nopol);
     setActiveTab('bbn2');
+  };
+
+  const handleSwitchToProNtt = (nopol, initialTax = null) => {
+    setProNttNopol(nopol);
+    setProNttTaxData(initialTax);
+    setActiveTab('prontt');
   };
 
   const handleSelectNjkb = (item) => {
@@ -212,46 +268,58 @@ function App() {
               setActiveTab={setActiveTab}
               onQuickSearch={handleQuickSearch}
               currentUser={currentUser}
+              canAccessMenu={canAccessMenu}
+              menuConfig={menuConfig}
             />
           )}
 
-          {activeTab === 'cek' && (
+          {activeTab === 'cek' && canAccessMenu('cek') && (
             <CheckTaxTab
               initialNopol={targetNopol}
               onClearInitialNopol={handleClearTargetNopol}
-              onSwitchToSimulation={handleSwitchToSimulation}
+              onSwitchToSimulation={canAccessMenu('simulasi') ? handleSwitchToSimulation : null}
+              onSwitchToProNtt={canAccessMenu('tombol_bayar_prontt') ? handleSwitchToProNtt : null}
+              showProNttInfo={canAccessMenu('prontt')}
             />
           )}
 
-          {activeTab === 'simulasi' && (
+          {activeTab === 'prontt' && canAccessMenu('prontt') && (
+            <ProNttTab
+              prefillNopol={proNttNopol}
+              initialTaxData={proNttTaxData}
+              onSwitchToTaxCheck={canAccessMenu('cek') ? handleQuickSearch : null}
+            />
+          )}
+
+          {activeTab === 'simulasi' && canAccessMenu('simulasi') && (
             <SimulateTab
               prefillNopol={simulationNopol}
               prefillData={simulationPrefill}
             />
           )}
 
-          {activeTab === 'bbn2' && (
+          {activeTab === 'bbn2' && canAccessMenu('bbn2') && (
             <Bbn2Tab
               prefillNopol={bbn2Nopol}
-              onSwitchToTaxCheck={handleQuickSearch}
+              onSwitchToTaxCheck={canAccessMenu('cek') ? handleQuickSearch : null}
             />
           )}
 
-          {activeTab === 'njkb' && (
+          {activeTab === 'njkb' && canAccessMenu('njkb') && (
             <NjkbTab
               onSelectNjkb={handleSelectNjkb}
-              onCekPajak={handleQuickSearch}
-              onSimulasi={handleSelectNjkb}
+              onCekPajak={canAccessMenu('cek') ? handleQuickSearch : null}
+              onSimulasi={canAccessMenu('simulasi') ? handleSelectNjkb : null}
             />
           )}
 
-          {activeTab === 'riwayat' && (
+          {activeTab === 'riwayat' && canAccessMenu('riwayat') && (
             <UserActivityTab
-              onRepeatSearch={handleQuickSearch}
+              onRepeatSearch={canAccessMenu('cek') ? handleQuickSearch : null}
             />
           )}
 
-          {activeTab === 'info' && (
+          {activeTab === 'info' && canAccessMenu('info') && (
             <InfoTab />
           )}
         </div>
@@ -260,6 +328,7 @@ function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           currentUser={currentUser}
+          canAccessMenu={canAccessMenu}
         />
       </MobileFrame>
     </>

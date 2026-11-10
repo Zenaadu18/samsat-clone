@@ -275,6 +275,14 @@ class UserAuthController extends Controller
             return response()->json(['status' => 'error', 'message' => 'User tidak valid.'], 401);
         }
 
+        $taxSvc = app(\App\Services\TaxCalculationService::class);
+        if (!$taxSvc->isMenuEnabledForUser('riwayat', $user)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Menu Riwayat Aktivitas sedang dinonaktifkan oleh administrator.',
+            ], 403);
+        }
+
         $isAll = $request->query('all') === '1' || $request->query('all') === 'true';
         $limit = $isAll ? 50 : 5;
 
